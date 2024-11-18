@@ -48,7 +48,9 @@
     "npm": ">=8.x"
   },
   "scripts": {
+    "postinstall": "npm run build",
     "build": "tsc --build",
+    "rebuild": "npm run build",
     "test": "npm run test:unit && npm run test:integration && npm run test:types",
     "test:unit": "mocha -r mocha.conf.js test/unit/*.spec.js",
     "test:integration": "mocha -r mocha.conf.js test/integration/*.spec.{m,}js",
