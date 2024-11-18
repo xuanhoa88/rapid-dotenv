@@ -1,0 +1,60 @@
+{
+  "name": "rapid-dotenv",
+  "version": "1.0.0",
+  "author": "xuanguyen<xuan.0211@gmail.com>",
+  "license": "MIT",
+  "description": "Loads environment variables from `.env.[development|test|production][.local]` files",
+  "keywords": [
+    "dotenv",
+    "node_env",
+    "development",
+    "test",
+    "production",
+    "local",
+    "env",
+    "environment",
+    "variables"
+  ],
+  "homepage": "https://github.com/xuanhoa88/rapid-dotenv#readme",
+  "main": "./dist/dotenvify.js",
+  "module": "./dist/dotenvify.js",
+  "types": "./dist/dotenvify.d.ts",
+  "bin": "./dist/config.js",
+  "exports": {
+    ".": "./dist/dotenvify.js",
+    "./config": {
+      "require": "./dist/config.js",
+      "node": "./dist/config.js"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "20.6.2",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
+    "@typescript-eslint/parser": "6.21.0",
+    "chai": "4.3.7",
+    "conventional-changelog-cli": "2.0.35",
+    "eslint": "8.57.1",
+    "eslint-config-prettier": "8.10.0",
+    "eslint-plugin-prettier": "5.2.1",
+    "mocha": "10.2.0",
+    "prettier": "3.3.3",
+    "sinon": "15.2.0",
+    "sinon-chai": "3.7.0",
+    "tmp": "0.2.1",
+    "typescript": "4.9.5"
+  },
+  "engines": {
+    "node": ">=14.x",
+    "npm": ">=8.x"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "npm run test:unit && npm run test:integration && npm run test:types",
+    "test:unit": "mocha -r mocha.conf.js test/unit/*.spec.js",
+    "test:integration": "mocha -r mocha.conf.js test/integration/*.spec.{m,}js",
+    "test:types": "tsc",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "lint": "eslint **/*.js",
+    "lint:fix": "npm run lint -- --fix"
+  }
+}
