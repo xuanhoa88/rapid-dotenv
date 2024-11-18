@@ -624,7 +624,7 @@ function config(options = {}) {
       }
     }
 
-    const result = load(filenames, {
+    const result = load(Array.from(new Set(filenames)), {
       encoding: options.encoding,
       debug: options.debug,
       silent: options.silent,
