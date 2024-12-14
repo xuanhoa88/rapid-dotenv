@@ -54,7 +54,7 @@ describe('rapid-dotenv/config (preload)', () => {
     let variables = await execWithPreload(getFixtureProjectPath('env'), {
       env: {
         DEFAULT_NODE_ENV: 'development',
-        ENVIFY_PATH: getFixtureProjectPath('node-env'),
+        DOTENVIFY_PATH: getFixtureProjectPath('node-env'),
       },
     });
 
@@ -71,7 +71,7 @@ describe('rapid-dotenv/config (preload)', () => {
       env: {
         NODE_ENV: 'production',
         DEFAULT_NODE_ENV: 'development',
-        ENVIFY_PATH: getFixtureProjectPath('node-env'),
+        DOTENVIFY_PATH: getFixtureProjectPath('node-env'),
       },
     });
 

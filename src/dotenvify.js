@@ -21,6 +21,7 @@ const CONFIG_OPTION_KEYS = [
   'encoding', // Encoding to use when reading .env files
   'purge_dotenv', // Flag to clear existing environment variables
   'silent', // Suppress errors if .env file is missing
+  'overwrite', // Allows overwriting existing `process.env` variables
 ];
 
 // Regular expression to match dotenv variable substitutions (e.g., `${VARIABLE}`, `${VARIABLE:-default}`)
@@ -314,13 +315,17 @@ function listFiles(options = {}) {
 }
 
 /**
- * Parses a given file or a list of files.
+ * Parses environment variables from a file or a list of files.
  *
- * When a list of filenames is given, the files will be parsed and merged in the same order as given.
+ * - If multiple filenames are provided, the files are parsed and merged sequentially,
+ *   with later files overwriting variables from earlier ones.
  *
- * @param {string|string[]} filenames - filename or a list of filenames to parse and merge
- * @param {{ encoding?: string, debug?: boolean }} [options] - parse options
- * @return {Object<string, string>} the resulting map of `{ env_var: value }` as an object
+ * @param {string | string[]} filenames - A filename or an array of filenames to parse and merge.
+ * @param {object} [options] - Configuration options for parsing.
+ * @param {string} [options.encoding="utf8"] - The character encoding used to read the files.
+ * @param {boolean} [options.debug=false] - If `true`, enables debug messages for logging.
+ * @param {object} [options.merger] - Custom function or strategy for merging environment variables.
+ * @returns {Record<string, string>} An object containing the parsed environment variables as key-value pairs.
  */
 function parse(filenames, options = {}) {
   const parseValue = rawValue => {
@@ -468,55 +473,55 @@ function parse(filenames, options = {}) {
     }
   };
 
-  return [...(Array.isArray(filenames) ? filenames : [filenames])].reduce(
+  return Array.from(new Set(Array.isArray(filenames) ? filenames : [filenames])).reduce(
     (result, filename) => objectMerger(options.merger)(result, parseFile(filename)),
     {}
   );
 }
 
 /**
- * Parses variables defined in given file(s) and assigns them to `process.env`.
+ * Parses variables from the specified file(s) and assigns them to `process.env`.
  *
- * Variables that are already defined in `process.env` will not be overwritten,
- * thus giving a higher priority to environment variables predefined by the shell.
+ * - Existing variables in `process.env` are not overwritten unless explicitly allowed via options,
+ *   giving priority to variables predefined by the shell.
+ * - On success, returns an object with a `parsed` property containing merged key-value pairs from the files.
+ * - On failure, leaves `process.env` unchanged and returns an object with an `error` property referencing the error.
  *
- * If the loading is successful, an object with `parsed` property is returned.
- * The `parsed` property contains parsed variables' `key => value` pairs merged in order using
- * the "overwrite merge" strategy.
- *
- * If parsing fails for any of the given files, `process.env` is being left untouched,
- * and an object with `error` property is returned.
- * The `error` property, if present, references to the occurred error.
- *
- * @param {string|string[]} filenames - filename or a list of filenames to parse and merge
- * @param {object} [options] - file loading options
- * @param {string} [options.encoding="utf8"] - encoding of `.env*` files
- * @param {boolean} [options.debug=false] - turn on debug messages
- * @param {boolean} [options.silent=false] - suppress console errors and warnings
- * @param {object} [options.merger] - env merger
- * @return {{ error: Error } | { parsed: Object<string, string> }}
+ * @param {string | string[]} filenames - A filename or an array of filenames to parse and merge.
+ * @param {object} [options] - Configuration options for file loading.
+ * @param {string} [options.encoding="utf8"] - The character encoding used to read `.env` files.
+ * @param {boolean} [options.debug=false] - If `true`, enables debug messages for additional logging.
+ * @param {boolean} [options.silent=false] - If `true`, suppresses console error and warning messages.
+ * @param {object} [options.merger] - Custom function or strategy for merging environment variables.
+ * @param {boolean} [options.overwrite=false] - If `true`, allows overwriting existing `process.env` variables.
+ * @returns {{ error: Error } | { parsed: Record<string, string> }}
+ * - Returns an object with either an `error` property (on failure) or a `parsed` property (on success).
  */
 function load(filenames, options = {}) {
   try {
-    const parsed = parse(filenames, {
-      encoding: options.encoding,
-      debug: options.debug,
-      silent: options.silent,
-      merger: options.merger,
-    });
+    const parsed = parse(filenames, options);
 
     options.debug && _debug('safe-merging parsed environment variables into `process.env`…');
 
-    const processEnv = Object.assign({}, process.env);
+    const processEnv = objectMerger(options.merger)({}, process.env);
     for (const processKey of Object.keys(parsed)) {
-      if (!Object.hasOwn(processEnv, processKey)) {
-        options.debug && _debug('>> process.env.%s', processKey);
-        parsed[processKey] = _resolveValue(_interpolate(parsed[processKey], processEnv, parsed));
-      } else if (options.debug && processEnv[processKey] !== parsed[processKey]) {
-        _debug('environment variable `%s` is predefined and not being overwritten', processKey);
+      // Check if the key exists in processEnv
+      if (processKey in processEnv) {
+        // Skip overriding and continue
+        if (!options.overwrite) {
+          options.debug &&
+            _debug('process.env.%s is predefined and not being overwritten', processKey);
+          continue;
+        }
+        // Log if debugging is enabled and overrides are allowed
+        options.debug &&
+          _debug('>> process.env.%s is predefined and being overwritten', processKey);
+      } else if (options.debug) {
+        // Log for new keys
+        _debug('>> process.env.%s is being set', processKey);
       }
+      parsed[processKey] = _resolveValue(_interpolate(parsed[processKey], processEnv, parsed));
     }
-
     process.env = objectMerger(options.merger)(parsed, processEnv);
 
     return { parsed };
@@ -563,7 +568,8 @@ function unload(filenames, options = {}) {
  * @param {boolean} [options.purge_dotenv=false] - perform the `.env` file {@link unload}
  * @param {boolean} [options.debug=false] - turn on detailed logging to help debug why certain variables are not being set as you expect
  * @param {boolean} [options.silent=false] - suppress all kinds of warnings including ".env*" files' loading errors
- * @param {object} [options.merger] - env merger
+ * @param {object} [options.merger] - Custom function or strategy for merging environment variables.
+ * @param {boolean} [options.overwrite=false] - If `true`, allows overwriting existing `process.env` variables.
  * @return {{ parsed?: object, error?: Error }} with a `parsed` key containing the loaded content or an `error` key with an error that is occurred
  */
 function config(options = {}) {
@@ -624,12 +630,7 @@ function config(options = {}) {
       }
     }
 
-    const result = load(Array.from(new Set(filenames)), {
-      encoding: options.encoding,
-      debug: options.debug,
-      silent: options.silent,
-      merger: options.merger,
-    });
+    const result = load(Array.from(new Set(filenames)), options);
 
     options.debug && _debug('initialization completed.');
 

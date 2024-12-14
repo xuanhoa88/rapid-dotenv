@@ -1,19 +1,47 @@
 
 # Logs
-logs
+logs/
 *.log
 *.lock
 
 # Runtime data
-pids
+pids/
+tmp/
 *.pid
 *.seed
 
-# Dependency directory
-# https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git
-node_modules
+# Yarn cache and Node.js dependency directories
+.yarn/
+node_modules/
+bower_components/
 
-# OSX
+# OS-specific files
 .DS_Store
+Thumbs.db
+desktop.ini
 
-dist
+# Build and distribution output
+build/
+dist/
+out/
+
+# IDE and editor-specific files
+.idea/
+*.swp
+*.swo
+*.iml
+npm-debug.log.*
+
+# Temporary files and backup files
+*.bak
+*.tmp
+*.temp
+~$*
+
+# Lockfiles
+*.lock
+package-lock.json
+
+# Ignore npm package folders for older setups
+jspm_packages/
+

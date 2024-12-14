@@ -7,6 +7,7 @@ const CLI_OPTIONS = {
   '--dotenvify-purge-dotenv': 'purge_dotenv',
   '--dotenvify-debug': 'debug',
   '--dotenvify-silent': 'silent',
+  '--dotenvify-overwrite': 'overwrite',
 };
 
 const CLI_OPTION_KEYS = Object.keys(CLI_OPTIONS);
@@ -15,7 +16,7 @@ const CLI_OPTION_KEYS = Object.keys(CLI_OPTIONS);
  * Get CLI options for `dotenvify#config()`.
  *
  * @param {string[]} [argv=process.argv]
- * @return {{node_env?: string, default_node_env?: string, path?: string, encoding?: string, purge_dotenv?: string, silent?: string}}
+ * @return {{node_env?: string, default_node_env?: string, path?: string, encoding?: string, purge_dotenv?: string, silent?: string, overwrite?: string}}
  */
 module.exports = function cli_options(argv = process.argv) {
   const options = {};

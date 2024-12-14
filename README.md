@@ -221,7 +221,7 @@ $ node -r rapid-dotenv/config your_script.js --node-env=production
 You can also use environment variables to set configuration options when preloading the `rapid-dotenv/config`:
 
 ```sh
-$ ENVIFY_PATH=/path/to/env-files-dir node -r rapid-dotenv/config your_script.js
+$ DOTENVIFY_PATH=/path/to/env-files-dir node -r rapid-dotenv/config your_script.js
 ```
 
 Refer to the [`rapid-dotenv/config` options](#dotenvifyconfig-options) section below to see all available options.
@@ -340,16 +340,16 @@ The following configuration options can be used when:
 
 * `NODE_ENV` => [`options.node_env`](#optionsnode_env);
 * `DEFAULT_NODE_ENV` => [`options.default_node_env`](#optionsdefault_node_env);
-* `ENVIFY_PATH` => [`options.path`](#optionspath);
-* `ENVIFY_PATTERN` => [`options.pattern`](#optionspattern);
-* `ENVIFY_ENCODING` => [`options.encoding`](#optionsencoding);
-* `ENVIFY_PURGE_DOTENV` => [`options.purge_dotenv`](#optionspurge_dotenv);
-* `ENVIFY_DEBUG` => [`options.debug`](#optionsdebug);
-* `ENVIFY_SILENT` => [`options.silent`](#optionssilent);
+* `DOTENVIFY_PATH` => [`options.path`](#optionspath);
+* `DOTENVIFY_PATTERN` => [`options.pattern`](#optionspattern);
+* `DOTENVIFY_ENCODING` => [`options.encoding`](#optionsencoding);
+* `DOTENVIFY_PURGE_DOTENV` => [`options.purge_dotenv`](#optionspurge_dotenv);
+* `DOTENVIFY_DEBUG` => [`options.debug`](#optionsdebug);
+* `DOTENVIFY_SILENT` => [`options.silent`](#optionssilent);
 
 ##### _for example:_
 ```sh
-$ NODE_ENV=production ENVIFY_PATH=/path/to/env-files-dir node -r rapid-dotenv/config your_script.js
+$ NODE_ENV=production DOTENVIFY_PATH=/path/to/env-files-dir node -r rapid-dotenv/config your_script.js
 ```
 
 ### Command line switches

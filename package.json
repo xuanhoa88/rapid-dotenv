@@ -1,6 +1,6 @@
 {
   "name": "rapid-dotenv",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "xuanguyen<xuan.0211@gmail.com>",
   "license": "MIT",
   "description": "Loads environment variables from `.env.[development|test|production][.local]` files",
