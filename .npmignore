@@ -10,6 +10,11 @@ tmp/
 *.pid
 *.seed
 
+# Coverage and cache files
+.cache/
+coverage/
+.eslintcache
+
 # Yarn cache and Node.js dependency directories
 .yarn/
 node_modules/

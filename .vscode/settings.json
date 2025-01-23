@@ -18,7 +18,7 @@
     "coverage": true,
     "node_modules": true,
     "npm-debug.log.*": true,
-    "test/**/__snapshots__": true,
+    "tests/**/__snapshots__": true,
     "package-lock.json": true,
     "*.lock": true,
   },

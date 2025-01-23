@@ -26,7 +26,7 @@ async function execWithPreload(cwd, { env = {}, args = [] } = {}) {
     process.argv[0], // ~= /usr/bin/node
     [
       '-r',
-      path.resolve(__dirname, '../../src/config'),
+      path.resolve(__dirname, '../../dist/config'),
       '-e',
       'console.log(JSON.stringify(process.env));',
       '--',

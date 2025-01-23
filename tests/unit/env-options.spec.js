@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const env_options = require('../../src/env-options');
+const env_options = require('../../dist/env-options');
 
 describe('env_options', () => {
   it('maps related environment variables to options', () => {

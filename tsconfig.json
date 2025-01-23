@@ -1,31 +1,60 @@
 {
-  "compilerOptions": {
-    "incremental": true,
-    "target": "es5",
-    "module": "commonjs",
-    "lib": ["dom", "es2022"],
-    "strict": true,
-    "sourceMap": true,
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    // Tells TypeScript to read JS files, as
-    // normally they are ignored as source files
-    "allowJs": true,
-    // Generate d.ts files
-    "declaration": true,
-    // This compiler run should
-    // only output d.ts files
-    "emitDeclarationOnly": false,
-    // Types should go into this directory.
-    // Removing this would place the .d.ts files
-    // next to the .js files
-    "outDir": "dist",
-    // go to js file when using IDE functions like
-    // "Go to Definition" in VSCode
-    "declarationMap": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["test", "dist"]
-}
+    "compilerOptions": {
+      // Target the ES2015 version for JavaScript compatibility
+      "target": "ES2015",
+
+      // Module system used in the output, CommonJS for Node.js compatibility
+      "module": "CommonJS",
+
+      // Enforce strict type-checking options
+      "strict": true,
+
+      // Enables interop between CommonJS and ESModule imports
+      "esModuleInterop": true,
+
+      // Skip type checking of declaration files
+      "skipLibCheck": true,
+
+      // Generates source maps for debugging
+      "sourceMap": true,
+
+      // How modules get resolved (node-style resolution for Node.js)
+      "moduleResolution": "node",
+
+      // Allows importing of CommonJS modules with a default import syntax
+      "allowSyntheticDefaultImports": true,
+
+      // Allows importing JSON files as modules
+      "resolveJsonModule": true,
+
+      // Ensure that all variables have an explicit type, no implicit 'any' allowed
+      "noImplicitAny": true,
+
+      // Ensures consistent casing of file names across the project
+      "forceConsistentCasingInFileNames": true,
+
+      // Allows JavaScript files to be compiled
+      "allowJs": true,
+
+      // Generates corresponding '.d.ts' declaration files for all TypeScript files
+      "declaration": true,
+
+      // Generates declaration map files for '.d.ts' files
+      "declarationMap": true,
+
+      // Ensure both TypeScript and declaration files are emitted (false would emit only declaration files)
+      "emitDeclarationOnly": false,
+
+      // The directory to output compiled JavaScript files
+      "outDir": "dist",
+
+      // The root directory of your source code (TypeScript files)
+      "rootDir": "src"
+    },
+
+    // Include all files in the 'src' directory
+    "include": ["src/**/*"],
+
+    // Exclude node_modules and dist directories from the compilation
+    "exclude": ["node_modules", "dist"]
+  }

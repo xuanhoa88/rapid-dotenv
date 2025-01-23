@@ -1,4 +1,4 @@
-require('../../../src/dotenvify').config({
+require('../../../dist/dotenvify').config({
   default_node_env: 'development',
 });
 

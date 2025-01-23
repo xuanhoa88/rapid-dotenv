@@ -1,6 +1,6 @@
 {
   "name": "rapid-dotenv",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "xuanguyen<xuan.0211@gmail.com>",
   "license": "MIT",
   "description": "Loads environment variables from `.env.[development|test|production][.local]` files",
@@ -41,6 +41,7 @@
     "sinon": "15.2.0",
     "sinon-chai": "3.7.0",
     "tmp": "0.2.1",
+    "ts-node": "10.9.2",
     "typescript": "4.9.5"
   },
   "engines": {
@@ -52,8 +53,8 @@
     "build": "tsc --build",
     "rebuild": "npm run build",
     "test": "npm run test:unit && npm run test:integration && npm run test:types",
-    "test:unit": "mocha -r mocha.conf.js test/unit/*.spec.js",
-    "test:integration": "mocha -r mocha.conf.js test/integration/*.spec.{m,}js",
+    "test:unit": "mocha './tests/unit/*.spec.@(mjs|cjs|js)'",
+    "test:integration": "mocha './tests/integration/*.spec.@(mjs|cjs|js)'",
     "test:types": "tsc",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "lint": "eslint **/*.js",

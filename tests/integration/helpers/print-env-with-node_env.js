@@ -1,5 +1,5 @@
-require('../../../src/dotenvify').config({
-  purge_dotenv: true,
+require('../../../dist/dotenvify').config({
+  node_env: process.env.CUSTOM_ENV,
 });
 
 // eslint-disable-next-line no-console

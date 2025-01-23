@@ -7,14 +7,14 @@ const ENV_OPTIONS = {
   DOTENVIFY_PURGE_DOTENV: 'purge_dotenv',
   DOTENVIFY_DEBUG: 'debug',
   DOTENVIFY_SILENT: 'silent',
-  DOTENVIFY_OVERWRITE: 'overwrite',
+  DOTENVIFY_OVERRIDE: 'override',
 };
 
 /**
  * Get environment variable defined options for `dotenvify#config()`.
  *
  * @param {object} [env=process.env]
- * @return {{node_env?: string, default_node_env?: string, path?: string, encoding?: string, purge_dotenv?: string, silent?: string, overwrite?: string}}
+ * @return {{node_env?: string, default_node_env?: string, path?: string, encoding?: string, purge_dotenv?: string, silent?: string, override?: string}}
  */
 module.exports = function env_options(env = process.env) {
   return Object.keys(ENV_OPTIONS).reduce((options, key) => {

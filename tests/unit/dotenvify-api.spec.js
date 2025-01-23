@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const dotenvify = require('../../src/dotenvify');
+const dotenvify = require('../../dist/dotenvify');
 
 describe('dotenvify (API)', () => {
   let _processEnvBackup;

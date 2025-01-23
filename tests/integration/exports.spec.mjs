@@ -33,14 +33,14 @@ describe('exports', () => {
 
   describe('CommonJS', () => {
     it('should load module using require', () => {
-      const dotenv = require('../../src/dotenvify'); // self-require
+      const dotenv = require('../../dist/dotenvify'); // self-require
 
       expect(dotenv).to.include.keys(['listFiles', 'config', 'parse', 'load', 'unload']);
     });
   });
 
   describe('ES Module', () => {
-    const dotenvPath = resolve('./src/dotenvify.js');
+    const dotenvPath = resolve('./dist/dotenvify.js');
     it('should load module using import', async () => {
       const dotenv = await import(dotenvPath); // self-import
       expect(dotenv).to.include.keys(['listFiles', 'config', 'parse', 'load', 'unload', 'default']);

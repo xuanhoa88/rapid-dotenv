@@ -1,5 +1,5 @@
 const { expect } = require('chai');
-const cli_options = require('../../src/cli-options');
+const cli_options = require('../../dist/cli-options');
 
 describe('cli_options', () => {
   it('maps related `--switches` to options', () => {

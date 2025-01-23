@@ -21,7 +21,7 @@ const CONFIG_OPTION_KEYS = [
   'encoding', // Encoding to use when reading .env files
   'purge_dotenv', // Flag to clear existing environment variables
   'silent', // Suppress errors if .env file is missing
-  'overwrite', // Allows overwriting existing `process.env` variables
+  'override', // Allows overwriting existing `process.env` variables
 ];
 
 // Regular expression to match dotenv variable substitutions (e.g., `${VARIABLE}`, `${VARIABLE:-default}`)
@@ -493,7 +493,7 @@ function parse(filenames, options = {}) {
  * @param {boolean} [options.debug=false] - If `true`, enables debug messages for additional logging.
  * @param {boolean} [options.silent=false] - If `true`, suppresses console error and warning messages.
  * @param {object} [options.merger] - Custom function or strategy for merging environment variables.
- * @param {boolean} [options.overwrite=false] - If `true`, allows overwriting existing `process.env` variables.
+ * @param {boolean} [options.override=false] - If `true`, allows overwriting existing `process.env` variables.
  * @returns {{ error: Error } | { parsed: Record<string, string> }}
  * - Returns an object with either an `error` property (on failure) or a `parsed` property (on success).
  */
@@ -508,7 +508,7 @@ function load(filenames, options = {}) {
       // Check if the key exists in processEnv
       if (processKey in processEnv) {
         // Skip overriding and continue
-        if (!options.overwrite) {
+        if (!options.override) {
           options.debug &&
             _debug('process.env.%s is predefined and not being overwritten', processKey);
           continue;
@@ -569,7 +569,7 @@ function unload(filenames, options = {}) {
  * @param {boolean} [options.debug=false] - turn on detailed logging to help debug why certain variables are not being set as you expect
  * @param {boolean} [options.silent=false] - suppress all kinds of warnings including ".env*" files' loading errors
  * @param {object} [options.merger] - Custom function or strategy for merging environment variables.
- * @param {boolean} [options.overwrite=false] - If `true`, allows overwriting existing `process.env` variables.
+ * @param {boolean} [options.override=false] - If `true`, allows overwriting existing `process.env` variables.
  * @return {{ parsed?: object, error?: Error }} with a `parsed` key containing the loaded content or an `error` key with an error that is occurred
  */
 function config(options = {}) {
