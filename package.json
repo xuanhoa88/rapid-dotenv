@@ -1,7 +1,7 @@
 {
   "name": "rapid-dotenv",
-  "version": "1.0.3",
-  "author": "xuanguyen <xuan.0211@gmail.com>",
+  "version": "1.0.5",
+  "author": "XuanNguyen <xuan.0211@gmail.com>",
   "license": "MIT",
   "description": "Loads environment variables from `.env.[development|test|production][.local]` files",
   "keywords": [
@@ -34,7 +34,6 @@
     "./config": "./dist/config.js"
   },
   "devDependencies": {
-    "@types/jest": "28.1.3",
     "@typescript-eslint/eslint-plugin": "6.21.0",
     "@typescript-eslint/parser": "6.21.0",
     "conventional-changelog-cli": "2.0.35",
@@ -47,7 +46,7 @@
     "typescript": "4.9.5"
   },
   "engines": {
-    "node": ">=14.x"
+    "node": ">=14"
   },
   "scripts": {
     "prepare": "npm run build",
