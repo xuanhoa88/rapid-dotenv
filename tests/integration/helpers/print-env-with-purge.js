@@ -1,4 +1,4 @@
-require('../../../dist/dotenvify').config({
+require('../../../src/dotenvify').config({
   purge_dotenv: true,
 });
 

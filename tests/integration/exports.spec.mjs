@@ -1,8 +1,7 @@
 import { createRequire } from 'module';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { expect } from 'chai';
-import sinon from 'sinon';
+// Jest does not need explicit import for expect
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,39 +10,52 @@ const require = createRequire(import.meta.url);
 describe('exports', () => {
   let _processEnvBackup;
 
-  before('backup the original `process.env` object', () => {
+  beforeAll(() => {
     _processEnvBackup = process.env;
   });
 
-  beforeEach('setup the `process.env` copy', () => {
+  beforeEach(() => {
     process.env = { ..._processEnvBackup };
+    jest.restoreAllMocks();
   });
 
-  after('restore the original `process.env` object', () => {
+  afterAll(() => {
     process.env = _processEnvBackup;
   });
 
-  beforeEach('stub `process.cwd()`', () => {
-    sinon.stub(process, 'cwd').returns(resolve(__dirname, 'fixtures', 'env'));
+  beforeEach(() => {
+    jest.spyOn(process, 'cwd').mockReturnValue(resolve(__dirname, 'fixtures', 'env'));
   });
 
-  afterEach('restore `process.cwd()`', () => {
-    process.cwd.restore();
+  afterEach(() => {
+    process.cwd.mockRestore();
   });
 
   describe('CommonJS', () => {
-    it('should load module using require', () => {
-      const dotenv = require('../../dist/dotenvify'); // self-require
-
-      expect(dotenv).to.include.keys(['listFiles', 'config', 'parse', 'load', 'unload']);
+    test('should load module using require', () => {
+      const dotenv = require('../../src/dotenvify'); // self-require
+      expect(dotenv).toEqual(expect.objectContaining({
+        listFiles: expect.any(Function),
+        config: expect.any(Function),
+        parse: expect.any(Function),
+        load: expect.any(Function),
+        unload: expect.any(Function),
+      }));
     });
   });
 
   describe('ES Module', () => {
-    const dotenvPath = resolve('./dist/dotenvify.js');
-    it('should load module using import', async () => {
+    const dotenvPath = resolve('./src/dotenvify.js');
+    test('should load module using import', async () => {
       const dotenv = await import(dotenvPath); // self-import
-      expect(dotenv).to.include.keys(['listFiles', 'config', 'parse', 'load', 'unload', 'default']);
+      expect(dotenv).toEqual(expect.objectContaining({
+        listFiles: expect.any(Function),
+        config: expect.any(Function),
+        parse: expect.any(Function),
+        load: expect.any(Function),
+        unload: expect.any(Function),
+        default: expect.anything(),
+      }));
     });
   });
 });

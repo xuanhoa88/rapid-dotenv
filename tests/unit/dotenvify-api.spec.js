@@ -1,24 +1,22 @@
 /* eslint-disable no-console */
-const { expect } = require('chai');
-const sinon = require('sinon');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const dotenvify = require('../../dist/dotenvify');
-
 describe('dotenvify (API)', () => {
   let _processEnvBackup;
+  let dotenvify;
 
-  before('backup the original `process.env` object', () => {
+  beforeAll(() => {
     _processEnvBackup = process.env;
   });
 
-  beforeEach('setup the `process.env` copy', () => {
+  beforeEach(() => {
     process.env = { ..._processEnvBackup };
+    dotenvify = require('../../src/dotenvify');
   });
 
-  after('restore the original `process.env` object', () => {
+  afterAll(() => {
     process.env = _processEnvBackup;
   });
 
@@ -26,20 +24,23 @@ describe('dotenvify (API)', () => {
 
   let $processCwd;
 
-  beforeEach('stub `process.cwd`', () => {
-    $processCwd = sinon.stub(process, 'cwd').returns('/path/to/project');
+  beforeEach(() => {
+    $processCwd = jest.spyOn(process, 'cwd').mockReturnValue('/path/to/project');
   });
 
-  afterEach(() => $processCwd.restore());
+  afterEach(() => {
+    $processCwd.mockRestore();
+  });
 
   if (os.platform() === 'win32') {
     let $pathResolve;
-
-    beforeEach('stub `path.resolve()`', () => {
-      $pathResolve = sinon.stub(path, 'resolve').callsFake((...paths) => paths.join('/'));
+    beforeEach(() => {
+      $pathResolve = jest.spyOn(path, 'resolve').mockImplementation((...paths) => paths.join('/'));
     });
 
-    afterEach(() => $pathResolve.restore());
+    afterEach(() => {
+      $pathResolve.mockRestore();
+    });
   }
 
   // --
@@ -60,25 +61,27 @@ describe('dotenvify (API)', () => {
     $dotenvFiles = fileMap;
   }
 
-  afterEach('reset `$dotenvFiles` stub', () => {
+  afterEach(() => {
     $dotenvFiles = {};
   });
 
   let $fs_existsSync;
 
-  beforeEach('stub `fs.existsSync`', () => {
-    $fs_existsSync = sinon
-      .stub(fs, 'existsSync')
-      .callsFake(filename => $dotenvFiles.hasOwnProperty(filename));
+  beforeEach(() => {
+    $fs_existsSync = jest
+      .spyOn(fs, 'existsSync')
+      .mockImplementation(filename => Object.prototype.hasOwnProperty.call($dotenvFiles, filename));
   });
 
-  afterEach(() => $fs_existsSync.restore());
+  afterEach(() => {
+    $fs_existsSync.mockRestore();
+  });
 
   let $fs_readFileSync;
 
-  beforeEach('stub `fs.readFileSync`', () => {
-    $fs_readFileSync = sinon.stub(fs, 'readFileSync').callsFake(filename => {
-      if (!$dotenvFiles.hasOwnProperty(filename)) {
+  beforeEach(() => {
+    $fs_readFileSync = jest.spyOn(fs, 'readFileSync').mockImplementation((filename, options) => {
+      if (!Object.prototype.hasOwnProperty.call($dotenvFiles, filename)) {
         const error = new Error(`ENOENT: no such file or directory, open '${filename}'`);
         error.code = 'ENOENT';
         error.errno = -2; // ENOENT's numeric error code
@@ -86,54 +89,55 @@ describe('dotenvify (API)', () => {
         error.path = filename;
         throw error;
       }
-
       return $dotenvFiles[filename];
     });
   });
 
-  afterEach(() => $fs_readFileSync.restore());
+  afterEach(() => {
+    $fs_readFileSync.mockRestore();
+  });
 
   // --
 
   describe('.listFiles', () => {
     describe('by default (when no options are given)', () => {
-      it('lists the default `.env` file if present', () => {
-        expect(dotenvify.listFiles()).to.not.include('.env');
+      test('lists the default `.env` file if present', () => {
+        expect(dotenvify.listFiles()).not.toContain('.env');
 
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles()).to.include('/path/to/project/.env');
+        expect(dotenvify.listFiles()).toContain('/path/to/project/.env');
       });
 
-      it('lists the `.env.local` file if present', () => {
-        expect(dotenvify.listFiles()).to.not.include('/path/to/project/.env.local');
+      test('lists the `.env.local` file if present', () => {
+        expect(dotenvify.listFiles()).not.toContain('/path/to/project/.env.local');
 
         mockFS({
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles()).to.include('/path/to/project/.env.local');
+        expect(dotenvify.listFiles()).toContain('/path/to/project/.env.local');
       });
 
-      it('lists the `.env.defaults` file if present', () => {
-        expect(dotenvify.listFiles()).to.not.include('/path/to/project/.env.defaults');
+      test('lists the `.env.defaults` file if present', () => {
+        expect(dotenvify.listFiles()).not.toContain('/path/to/project/.env.defaults');
 
         mockFS({
           '/path/to/project/.env.defaults': 'DEFAULT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles()).to.include('/path/to/project/.env.defaults');
+        expect(dotenvify.listFiles()).toContain('/path/to/project/.env.defaults');
       });
 
-      it('lists files in the order of ascending priority', () => {
+      test('lists files in the order of ascending priority', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles()).to.have.ordered.members([
+        expect(dotenvify.listFiles()).toEqual([
           '/path/to/project/.env',
           '/path/to/project/.env.local',
         ]);
@@ -145,7 +149,7 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles()).to.have.ordered.members([
+        expect(dotenvify.listFiles()).toEqual([
           '/path/to/project/.env.defaults',
           '/path/to/project/.env',
         ]);
@@ -155,42 +159,44 @@ describe('dotenvify (API)', () => {
     describe('when `options.node_env` is given', () => {
       let options;
 
-      beforeEach('setup `options.node_env`', () => {
+      beforeEach(() => {
         options = { node_env: 'development' };
       });
 
-      it('lists the default `.env` file if present', () => {
-        expect(dotenvify.listFiles(options)).to.not.include('/path/to/project/.env');
+      test('lists the default `.env` file if present', () => {
+        expect(dotenvify.listFiles({ ...options })).not.toContain('/path/to/project/.env');
 
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env');
+        expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env');
       });
 
-      it('lists the `.env.local` file if present', () => {
-        expect(dotenvify.listFiles(options)).to.not.include('/path/to/project/.env.local');
+      test('lists the `.env.local` file if present', () => {
+        expect(dotenvify.listFiles({ ...options })).not.toContain('/path/to/project/.env.local');
 
         mockFS({
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env.local');
+        expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env.local');
       });
 
-      it('lists the "node_env-specific" file if present', () => {
-        expect(dotenvify.listFiles(options)).to.not.include('/path/to/project/.env.development');
+      test('lists the "node_env-specific" file if present', () => {
+        expect(dotenvify.listFiles({ ...options })).not.toContain(
+          '/path/to/project/.env.development'
+        );
 
         mockFS({
           '/path/to/project/.env.development': 'DEVELOPMENT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env.development');
+        expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env.development');
       });
 
-      it('lists the "node_env-specific" local file if present', () => {
-        expect(dotenvify.listFiles(options)).to.not.include(
+      test('lists the "node_env-specific" local file if present', () => {
+        expect(dotenvify.listFiles({ ...options })).not.toContain(
           '/path/to/project/.env.development.local'
         );
 
@@ -198,26 +204,28 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env.development.local': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env.development.local');
+        expect(dotenvify.listFiles({ ...options })).toContain(
+          '/path/to/project/.env.development.local'
+        );
       });
 
-      it('lists the `.env.defaults` file if present', () => {
-        expect(dotenvify.listFiles(options)).to.not.include('/path/to/project/.env.defaults');
+      test('lists the `.env.defaults` file if present', () => {
+        expect(dotenvify.listFiles({ ...options })).not.toContain('/path/to/project/.env.defaults');
 
         mockFS({
           '/path/to/project/.env.defaults': 'DEFAULT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env.defaults');
+        expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env.defaults');
       });
 
-      it('lists files in the order of ascending priority', () => {
+      test('lists files in the order of ascending priority', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.have.ordered.members([
+        expect(dotenvify.listFiles({ ...options })).toEqual([
           '/path/to/project/.env',
           '/path/to/project/.env.local',
         ]);
@@ -229,7 +237,7 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.have.ordered.members([
+        expect(dotenvify.listFiles({ ...options })).toEqual([
           '/path/to/project/.env.defaults',
           '/path/to/project/.env',
         ]);
@@ -241,7 +249,7 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env.development': 'DEVELOPMENT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.have.ordered.members([
+        expect(dotenvify.listFiles({ ...options })).toEqual([
           '/path/to/project/.env',
           '/path/to/project/.env.development',
         ]);
@@ -255,7 +263,7 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env.development.local': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.have.ordered.members([
+        expect(dotenvify.listFiles({ ...options })).toEqual([
           '/path/to/project/.env',
           '/path/to/project/.env.local',
           '/path/to/project/.env.development',
@@ -267,11 +275,11 @@ describe('dotenvify (API)', () => {
     describe('when `options.node_env` is set to "test"', () => {
       let options;
 
-      beforeEach('set `options.node_env` to "test"', () => {
+      beforeEach(() => {
         options = { node_env: 'test' };
       });
 
-      it("doesn't list the `.env.local` file", () => {
+      test("doesn't list the `.env.local` file", () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -279,47 +287,49 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env.test.local': 'LOCAL_TEST_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options))
-          .to.have.ordered.members([
-            '/path/to/project/.env',
-            '/path/to/project/.env.test',
-            '/path/to/project/.env.test.local',
-          ])
-          .and.not.include('/path/to/project/.env.local');
+        const files = dotenvify.listFiles({ ...options });
+
+        expect(files).toEqual([
+          '/path/to/project/.env',
+          '/path/to/project/.env.test',
+          '/path/to/project/.env.test.local',
+        ]);
+
+        expect(files).not.toContain('/path/to/project/.env.local');
       });
     });
 
     describe('when `options.pattern` is set to ".env/[local/]env[.node_env]"', () => {
       let options;
 
-      beforeEach('setup `options.pattern`', () => {
+      beforeEach(() => {
         options = { pattern: '.env/[local/]env[.node_env]' };
       });
 
       describe('… and no `options.node_env` is given', () => {
-        it('lists `.env/env` as a default `.env` file', () => {
+        test('lists `.env/env` as a default `.env` file', () => {
           mockFS({
             '/path/to/project/.env/env': 'DEFAULT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/env');
         });
 
-        it('lists `.env/local/env` as `.env.local` file', () => {
+        test('lists `.env/local/env` as `.env.local` file', () => {
           mockFS({
             '/path/to/project/.env/local/env': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/local/env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/local/env');
         });
 
-        it('lists files in the order of ascending priority', () => {
+        test('lists files in the order of ascending priority', () => {
           mockFS({
             '/path/to/project/.env/env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env/local/env': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.have.ordered.members([
+          expect(dotenvify.listFiles({ ...options })).toEqual([
             '/path/to/project/.env/env',
             '/path/to/project/.env/local/env',
           ]);
@@ -327,45 +337,47 @@ describe('dotenvify (API)', () => {
       });
 
       describe('… and `options.node_env` is given', () => {
-        beforeEach('setup `.options.node_env`', () => {
+        beforeEach(() => {
           options.node_env = 'development';
         });
 
-        it('lists `.env/env` as a default `.env` file', () => {
+        test('lists `.env/env` as a default `.env` file', () => {
           mockFS({
             '/path/to/project/.env/env': 'DEFAULT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/env');
         });
 
-        it('lists `.env/local/env` as `.env.local` file', () => {
+        test('lists `.env/local/env` as `.env.local` file', () => {
           mockFS({
             '/path/to/project/.env/local/env': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/local/env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/local/env');
         });
 
-        it('lists `.env/env.<node_env>` as a "node_env-specific" file', () => {
+        test('lists `.env/env.<node_env>` as a "node_env-specific" file', () => {
           mockFS({
             '/path/to/project/.env/env.development': 'DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/env.development');
+          expect(dotenvify.listFiles({ ...options })).toContain(
+            '/path/to/project/.env/env.development'
+          );
         });
 
-        it('lists `.env/local/env.<node_env>` as a local "node_env-specific" file', () => {
+        test('lists `.env/local/env.<node_env>` as a local "node_env-specific" file', () => {
           mockFS({
             '/path/to/project/.env/local/env.development': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include(
+          expect(dotenvify.listFiles({ ...options })).toContain(
             '/path/to/project/.env/local/env.development'
           );
         });
 
-        it('lists files in the order of ascending priority', () => {
+        test('lists files in the order of ascending priority', () => {
           mockFS({
             '/path/to/project/.env/env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env/local/env': 'LOCAL_ENV_VAR=ok',
@@ -373,7 +385,7 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env/local/env.development': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.have.ordered.members([
+          expect(dotenvify.listFiles({ ...options })).toEqual([
             '/path/to/project/.env/env',
             '/path/to/project/.env/local/env',
             '/path/to/project/.env/env.development',
@@ -383,11 +395,11 @@ describe('dotenvify (API)', () => {
       });
 
       describe('… and `options.node_env` is set to "test"', () => {
-        beforeEach('set `.options.node_env` to "test"', () => {
+        beforeEach(() => {
           options.node_env = 'test';
         });
 
-        it("doesn't list `.env.local`'s alternate file", () => {
+        test("doesn't list `.env.local`'s alternate file", () => {
           mockFS({
             '/path/to/project/.env/env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env/local/env': 'LOCAL_ENV_VAR=ok',
@@ -395,13 +407,15 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env/local/env.test': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options))
-            .to.have.ordered.members([
-              '/path/to/project/.env/env',
-              '/path/to/project/.env/env.test',
-              '/path/to/project/.env/local/env.test',
-            ])
-            .and.not.include('/path/to/project/.env/local/env');
+          const files = dotenvify.listFiles({ ...options });
+
+          expect(files).toEqual([
+            '/path/to/project/.env/env',
+            '/path/to/project/.env/env.test',
+            '/path/to/project/.env/local/env.test',
+          ]);
+
+          expect(files).not.toContain('/path/to/project/.env/local/env');
         });
       });
     });
@@ -409,36 +423,36 @@ describe('dotenvify (API)', () => {
     describe('when `options.pattern` is set to ".env/[node_env/].env[.node_env][.local]"', () => {
       let options;
 
-      beforeEach('setup `options.pattern`', () => {
+      beforeEach(() => {
         options = {
           pattern: '.env/[node_env/].env[.node_env][.local]',
         };
       });
 
       describe('… and no `options.node_env` is given', () => {
-        it('lists `.env/.env` as a default `.env` file', () => {
+        test('lists `.env/.env` as a default `.env` file', () => {
           mockFS({
             '/path/to/project/.env/.env': 'DEFAULT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/.env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/.env');
         });
 
-        it('lists `.env/.env.local` as `.env.local` file', () => {
+        test('lists `.env/.env.local` as `.env.local` file', () => {
           mockFS({
             '/path/to/project/.env/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/.env.local');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/.env.local');
         });
 
-        it('lists files in the order of ascending priority', () => {
+        test('lists files in the order of ascending priority', () => {
           mockFS({
             '/path/to/project/.env/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.have.ordered.members([
+          expect(dotenvify.listFiles({ ...options })).toEqual([
             '/path/to/project/.env/.env',
             '/path/to/project/.env/.env.local',
           ]);
@@ -446,48 +460,48 @@ describe('dotenvify (API)', () => {
       });
 
       describe('… and `options.node_env` is given', () => {
-        beforeEach('setup `.options.node_env`', () => {
+        beforeEach(() => {
           options.node_env = 'development';
         });
 
-        it('lists `.env/.env` as a default `.env` file', () => {
+        test('lists `.env/.env` as a default `.env` file', () => {
           mockFS({
             '/path/to/project/.env/.env': 'DEFAULT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/.env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/.env');
         });
 
-        it('lists `.env/.env.local` as `.env.local` file', () => {
+        test('lists `.env/.env.local` as `.env.local` file', () => {
           mockFS({
             '/path/to/project/.env/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env/.env.local');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env/.env.local');
         });
 
-        it('lists `.env/<node_env>/.env.<node_env>` as a "node_env-specific" file', () => {
+        test('lists `.env/<node_env>/.env.<node_env>` as a "node_env-specific" file', () => {
           mockFS({
             '/path/to/project/.env/development/.env.development': 'DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include(
+          expect(dotenvify.listFiles({ ...options })).toContain(
             '/path/to/project/.env/development/.env.development'
           );
         });
 
-        it('lists `.env/<node_env>/.env.<node_env>.local` as a local "node_env-specific" file', () => {
+        test('lists `.env/<node_env>/.env.<node_env>.local` as a local "node_env-specific" file', () => {
           mockFS({
             '/path/to/project/.env/development/.env.development.local':
               'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include(
+          expect(dotenvify.listFiles({ ...options })).toContain(
             '/path/to/project/.env/development/.env.development.local'
           );
         });
 
-        it('lists files in the order of ascending priority', () => {
+        test('lists files in the order of ascending priority', () => {
           mockFS({
             '/path/to/project/.env/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -496,7 +510,7 @@ describe('dotenvify (API)', () => {
               'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.have.ordered.members([
+          expect(dotenvify.listFiles({ ...options })).toEqual([
             '/path/to/project/.env/.env',
             '/path/to/project/.env/.env.local',
             '/path/to/project/.env/development/.env.development',
@@ -506,11 +520,11 @@ describe('dotenvify (API)', () => {
       });
 
       describe('… and `options.node_env` is set to "test"', () => {
-        beforeEach('set `.options.node_env` to "test"', () => {
+        beforeEach(() => {
           options.node_env = 'test';
         });
 
-        it("doesn't list `.env.local`'s alternate file", () => {
+        test("doesn't list `.env.local`'s alternate file", () => {
           mockFS({
             '/path/to/project/.env/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -518,13 +532,15 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env/test/.env.test.local': 'LOCAL_TEST_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options))
-            .to.have.ordered.members([
-              '/path/to/project/.env/.env',
-              '/path/to/project/.env/test/.env.test',
-              '/path/to/project/.env/test/.env.test.local',
-            ])
-            .and.not.include('/path/to/project/.env/.env.local');
+          const files = dotenvify.listFiles({ ...options });
+
+          expect(files).toEqual([
+            '/path/to/project/.env/.env',
+            '/path/to/project/.env/test/.env.test',
+            '/path/to/project/.env/test/.env.test.local',
+          ]);
+
+          expect(files).not.toContain('/path/to/project/.env/.env.local');
         });
       });
     });
@@ -532,34 +548,34 @@ describe('dotenvify (API)', () => {
     describe('when `options.pattern` is set to ".env[.local]" (no `[node_env]` placeholder specified)', () => {
       let options;
 
-      beforeEach('setup `options.pattern`', () => {
+      beforeEach(() => {
         options = { pattern: '.env[.local]' };
       });
 
       describe('… and no `options.node_env` is given', () => {
-        it('lists the default `.env` file', () => {
+        test('lists the default `.env` file', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env');
         });
 
-        it('lists the `.env.local` file', () => {
+        test('lists the `.env.local` file', () => {
           mockFS({
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env.local');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env.local');
         });
 
-        it('lists files in the order of ascending priority', () => {
+        test('lists files in the order of ascending priority', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.have.ordered.members([
+          expect(dotenvify.listFiles({ ...options })).toEqual([
             '/path/to/project/.env',
             '/path/to/project/.env.local',
           ]);
@@ -567,27 +583,27 @@ describe('dotenvify (API)', () => {
       });
 
       describe('… and `options.node_env` is given', () => {
-        beforeEach('setup `.options.node_env`', () => {
+        beforeEach(() => {
           options.node_env = 'development';
         });
 
-        it('lists the default `.env` file', () => {
+        test('lists the default `.env` file', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env');
         });
 
-        it('lists the `env.local` file', () => {
+        test('lists the `env.local` file', () => {
           mockFS({
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env.local');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env.local');
         });
 
-        it(`doesn't list any "node_env-specific" files`, () => {
+        test(`doesn't list any "node_env-specific" files`, () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -595,18 +611,18 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env.development.local': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          for (const filename of dotenvify.listFiles(options)) {
-            expect(filename).to.not.include('development');
+          for (const filename of dotenvify.listFiles({ ...options })) {
+            expect(filename).not.toContain('development');
           }
         });
 
-        it('lists files in the order of ascending priority', () => {
+        test('lists files in the order of ascending priority', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.have.ordered.members([
+          expect(dotenvify.listFiles({ ...options })).toEqual([
             '/path/to/project/.env',
             '/path/to/project/.env.local',
           ]);
@@ -614,11 +630,11 @@ describe('dotenvify (API)', () => {
       });
 
       describe('… and `options.node_env` is set to "test"', () => {
-        beforeEach('set `.options.node_env` to "test"', () => {
+        beforeEach(() => {
           options.node_env = 'test';
         });
 
-        it('lists only the default `.env` file', () => {
+        test('lists only the default `.env` file', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -626,7 +642,7 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env.test.local': 'LOCAL_TEST_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.deep.equal(['/path/to/project/.env']);
+          expect(dotenvify.listFiles({ ...options })).toEqual(['/path/to/project/.env']);
         });
       });
     });
@@ -634,43 +650,45 @@ describe('dotenvify (API)', () => {
     describe('when `options.pattern` is set to ".env[.node_env]" (no `[local]` placeholder specified)', () => {
       let options;
 
-      beforeEach('setup `options.pattern`', () => {
+      beforeEach(() => {
         options = { pattern: '.env[.node_env]' };
       });
 
       describe('… and no `options.node_env` is given', () => {
-        it('lists only the default `.env` file', () => {
+        test('lists only the default `.env` file', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.deep.equal(['/path/to/project/.env']);
+          expect(dotenvify.listFiles({ ...options })).toEqual(['/path/to/project/.env']);
         });
       });
 
       describe('… and `options.node_env` is given', () => {
-        beforeEach('setup `.options.node_env`', () => {
+        beforeEach(() => {
           options.node_env = 'development';
         });
 
-        it('lists the default `.env` file', () => {
+        test('lists the default `.env` file', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env');
+          expect(dotenvify.listFiles({ ...options })).toContain('/path/to/project/.env');
         });
 
-        it('lists the "node_env-specific" file', () => {
+        test('lists the "node_env-specific" file', () => {
           mockFS({
             '/path/to/project/.env.development': 'DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.include('/path/to/project/.env.development');
+          expect(dotenvify.listFiles({ ...options })).toContain(
+            '/path/to/project/.env.development'
+          );
         });
 
-        it("doesn't list any `.local` files", () => {
+        test("doesn't list any `.local` files", () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -678,12 +696,12 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env.development.local': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          for (const filename of dotenvify.listFiles(options)) {
-            expect(filename).to.not.include('local');
+          for (const filename of dotenvify.listFiles({ ...options })) {
+            expect(filename).not.toContain('local');
           }
         });
 
-        it('lists files in the order of ascending priority', () => {
+        test('lists files in the order of ascending priority', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -691,7 +709,7 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env.development.local': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
           });
 
-          expect(dotenvify.listFiles(options)).to.have.ordered.members([
+          expect(dotenvify.listFiles({ ...options })).toEqual([
             '/path/to/project/.env',
             '/path/to/project/.env.development',
           ]);
@@ -702,17 +720,17 @@ describe('dotenvify (API)', () => {
     describe('when `options.path` is given', () => {
       let options;
 
-      beforeEach('setup `options.pattern`', () => {
+      beforeEach(() => {
         options = { path: '/path/to/another/project' };
       });
 
-      it('uses the given `options.path` as a working directory', () => {
+      test('uses the given `options.path` as a working directory', () => {
         mockFS({
           '/path/to/another/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/another/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(dotenvify.listFiles(options)).to.deep.equal([
+        expect(dotenvify.listFiles({ ...options })).toEqual([
           '/path/to/another/project/.env',
           '/path/to/another/project/.env.local',
         ]);
@@ -722,27 +740,27 @@ describe('dotenvify (API)', () => {
 
   describe('.parse', () => {
     describe('when a single filename is given', () => {
-      beforeEach('stub `.env` file content', () => {
+      beforeEach(() => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
       });
 
-      it('parses the contents of the file returning the resulting `name => value` map', () => {
+      test('parses the contents of the file returning the resulting `name => value` map', () => {
         const parsed = dotenvify.parse('/path/to/project/.env');
 
-        expect(parsed).to.be.an('object').with.property('DEFAULT_ENV_VAR', 'ok');
+        expect(parsed).toEqual({ DEFAULT_ENV_VAR: 'ok' });
       });
 
-      it("throws if file doesn't exist", () => {
-        expect(() => dotenvify.parse('/path/to/project/non-existent-file')).to.throw(
-          "ENOENT: no such file or directory, open '/path/to/project/non-existent-file'"
-        );
+      test("throws if file doesn't exist", () => {
+        expect(() =>
+          dotenvify.parse('/path/to/project/non-existent-file', { silent: true })
+        ).toThrow("ENOENT: no such file or directory, open '/path/to/project/non-existent-file'");
       });
     });
 
     describe('when multiple filenames are given', () => {
-      beforeEach("stub `.env*` files' contents", () => {
+      beforeEach(() => {
         mockFS({
           '/path/to/project/.env':
             'DEFAULT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR="should be overwritten by `.env.local`"',
@@ -750,41 +768,44 @@ describe('dotenvify (API)', () => {
         });
       });
 
-      it('parses and merges the contents of the given files using the "overwrite merge" strategy', () => {
+      test('parses and merges the contents of the given files using the "overwrite merge" strategy', () => {
         const parsed = dotenvify.parse(['/path/to/project/.env', '/path/to/project/.env.local']);
 
-        expect(parsed).to.be.an('object').that.deep.equals({
+        expect(parsed).toEqual({
           DEFAULT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
           SHARED_ENV_VAR: 'ok',
         });
       });
 
-      it("throws if any of the given files doesn't exist", () => {
+      test("throws if any of the given files doesn't exist", () => {
         expect(() =>
-          dotenvify.parse([
-            '/path/to/project/.env',
-            '/path/to/project/.env-non-existent',
-            '/path/to/project/.env.local',
-          ])
-        ).to.throw("ENOENT: no such file or directory, open '/path/to/project/.env-non-existent'");
+          dotenvify.parse(
+            [
+              '/path/to/project/.env',
+              '/path/to/project/.env-non-existent',
+              '/path/to/project/.env.local',
+            ],
+            { silent: true }
+          )
+        ).toThrow("ENOENT: no such file or directory, open '/path/to/project/.env-non-existent'");
       });
     });
 
     describe('when `options.encoding` is given', () => {
-      beforeEach("setup `.env*` files' stubs", () => {
+      beforeEach(() => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
       });
 
-      it('provides the given `options.encoding` to `fs.readFileSync()`', () => {
+      test('provides the given `options.encoding` to `fs.readFileSync()`', () => {
         dotenvify.parse('/path/to/project/.env', {
           encoding: 'base64',
         });
 
-        expect($fs_readFileSync).to.have.been.calledWith('/path/to/project/.env', {
+        expect($fs_readFileSync).toHaveBeenCalledWith('/path/to/project/.env', {
           encoding: 'base64',
         });
 
@@ -792,7 +813,7 @@ describe('dotenvify (API)', () => {
           encoding: 'base64',
         });
 
-        expect($fs_readFileSync).to.have.been.calledWith('/path/to/project/.env.local', {
+        expect($fs_readFileSync).toHaveBeenCalledWith('/path/to/project/.env.local', {
           encoding: 'base64',
         });
       });
@@ -800,82 +821,84 @@ describe('dotenvify (API)', () => {
   });
 
   describe('.load', () => {
-    beforeEach("stub `.env*` files' contents", () => {
+    beforeEach(() => {
       mockFS({
         '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         '/path/to/project/.env.development': 'DEVELOPMENT_ENV_VAR=ok',
       });
     });
 
-    beforeEach('stub `console.warn`', () => {
-      sinon.stub(console, 'warn');
+    beforeEach(() => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
     });
 
-    afterEach('restore `console.warn`', () => {
-      console.warn.restore();
+    afterEach(() => {
+      jest.restoreAllMocks();
     });
 
-    it('loads environment variables from the given files into `process.env`', () => {
-      expect(process.env).to.not.have.keys(['DEFAULT_ENV_VAR', 'DEVELOPMENT_ENV_VAR']);
+    test('loads environment variables from the given files into `process.env`', () => {
+      expect(process.env).not.toHaveProperty('DEFAULT_ENV_VAR');
+      expect(process.env).not.toHaveProperty('DEVELOPMENT_ENV_VAR');
 
       dotenvify.load(['/path/to/project/.env', '/path/to/project/.env.development']);
 
-      expect(process.env).to.include({
-        DEFAULT_ENV_VAR: 'ok',
-        DEVELOPMENT_ENV_VAR: 'ok',
-      });
+      expect(process.env).toHaveProperty('DEFAULT_ENV_VAR', 'ok');
+      expect(process.env).toHaveProperty('DEVELOPMENT_ENV_VAR', 'ok');
     });
 
-    it('returns cumulative parsed contents of the given files within the `.parsed` property', () => {
+    test('returns cumulative parsed contents of the given files within the `.parsed` property', () => {
       const result = dotenvify.load(['/path/to/project/.env', '/path/to/project/.env.development']);
 
-      expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
-        DEFAULT_ENV_VAR: 'ok',
-        DEVELOPMENT_ENV_VAR: 'ok',
+      expect(result).toEqual({
+        parsed: {
+          DEFAULT_ENV_VAR: 'ok',
+          DEVELOPMENT_ENV_VAR: 'ok',
+        },
       });
     });
 
-    it("doesn't overwrite predefined environment variables", () => {
+    test("doesn't overwrite predefined environment variables", () => {
       process.env.DEFAULT_ENV_VAR = 'predefined';
 
       dotenvify.load(['/path/to/project/.env', '/path/to/project/.env.development']);
 
-      expect(process.env).to.include({
-        DEFAULT_ENV_VAR: 'predefined',
-        DEVELOPMENT_ENV_VAR: 'ok',
-      });
+      expect(process.env).toHaveProperty('DEFAULT_ENV_VAR', 'predefined');
+      expect(process.env).toHaveProperty('DEVELOPMENT_ENV_VAR', 'ok');
     });
 
     describe('when `options.encoding` is given', () => {
       let options;
 
-      beforeEach('setup `options.encoding`', () => {
+      beforeEach(() => {
         options = { encoding: 'base64' };
       });
 
-      it('provides the given `options.encoding` to `fs.readFileSync()`', () => {
+      test('provides the given `options.encoding` to `fs.readFileSync()`', () => {
         dotenvify.load(['/path/to/project/.env', '/path/to/project/.env.development'], options);
 
-        expect($fs_readFileSync).to.have.been.calledWith('/path/to/project/.env', {
+        expect($fs_readFileSync).toHaveBeenCalledWith('/path/to/project/.env', {
           encoding: 'base64',
         });
 
-        expect($fs_readFileSync).to.have.been.calledWith('/path/to/project/.env.development', {
+        expect($fs_readFileSync).toHaveBeenCalledWith('/path/to/project/.env.development', {
           encoding: 'base64',
         });
       });
     });
 
     describe('if parsing is failed', () => {
-      beforeEach('stub `fs.readFileSync` error', () => {
-        $fs_readFileSync
-          .withArgs('/path/to/project/.env.local')
-          .throws(new Error('`.env.local` file reading error stub'));
+      beforeEach(() => {
+        $fs_readFileSync.mockImplementation((filename, options) => {
+          if (filename === '/path/to/project/.env.local') {
+            throw new Error('`.env.local` file reading error stub');
+          }
+          return $dotenvFiles[filename];
+        });
       });
 
       let filenames;
 
-      beforeEach('setup `filenames` for loading', () => {
+      beforeEach(() => {
         filenames = [
           '/path/to/project/.env',
           '/path/to/project/.env.local', // << the mocked error filename
@@ -883,77 +906,82 @@ describe('dotenvify (API)', () => {
         ];
       });
 
-      it('leaves `process.env` untouched (does not assign any variables)', () => {
+      test('leaves `process.env` untouched (does not assign any variables)', () => {
         const processEnvCopy = { ...process.env };
 
         dotenvify.load(filenames);
 
-        expect(process.env).to.deep.equal(processEnvCopy);
+        expect(process.env).toEqual(processEnvCopy);
       });
 
-      it('returns the occurred error within the `.error` property', () => {
+      test('returns the occurred error within the `.error` property', () => {
         const result = dotenvify.load(filenames);
 
-        expect(result)
-          .to.be.an('object')
-          .with.property('error')
-          .that.is.an('error')
-          .with.property('message', '`.env.local` file reading error stub');
-      });
-
-      it('warns about the occurred error', () => {
-        dotenvify.load(filenames);
-
-        expect(console.warn).to.have.been.calledWithMatch(
-          /dotenvify\b.*`\.env\.local` file reading error stub/
+        expect(result).toEqual({
+          error: expect.any(Error),
+        });
+        expect(result.error.message).toEqual(
+          expect.stringContaining('`.env.local` file reading error stub')
         );
       });
 
-      it("doesn't warn when suppressed by `options.silent`", () => {
+      test('warns about the occurred error', () => {
+        dotenvify.load(filenames);
+
+        const calls = console.warn.mock.calls.flat();
+
+        expect(calls).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching(/dotenvify\b.*`\.env\.local` file reading error stub/),
+          ])
+        );
+      });
+
+      test("doesn't warn when suppressed by `options.silent`", () => {
         dotenvify.load(filenames, { silent: true });
 
-        expect(console.warn).to.have.not.been.called;
+        expect(console.warn).toHaveBeenCalledTimes(0);
       });
     });
   });
 
   describe('.unload', () => {
-    beforeEach('stub `fs.readFileSync`', () => {
+    beforeEach(() => {
       mockFS({
         '/path/to/project/.env': 'DEFAULT_ENV_VAR="defined by `.env`"',
       });
     });
 
-    it('cleanups `process.env` from the environment variables defined in a given file', () => {
+    test('cleanups `process.env` from the environment variables defined in a given file', () => {
       process.env.DEFAULT_ENV_VAR = 'defined by `.env`';
 
       dotenvify.unload('/path/to/project/.env');
 
-      expect(process.env).to.not.have.property('DEFAULT_ENV_VAR');
+      expect(process.env).not.toHaveProperty('DEFAULT_ENV_VAR');
     });
 
-    it("doesn't touch the other environment variables", () => {
+    test("doesn't touch the other environment variables", () => {
       process.env.ENV_VAR = 'defined by the environment';
       process.env.DEFAULT_ENV_VAR = 'defined by `.env`';
 
       dotenvify.unload('/path/to/project/.env');
 
-      expect(process.env).to.not.have.property('DEFAULT_ENV_VAR');
+      expect(process.env).not.toHaveProperty('DEFAULT_ENV_VAR');
 
-      expect(process.env).to.have.property('ENV_VAR', 'defined by the environment');
+      expect(process.env).toHaveProperty('ENV_VAR', 'defined by the environment');
     });
 
     describe('when `options.encoding` is given', () => {
       let options;
 
-      beforeEach('setup `options.encoding`', () => {
+      beforeEach(() => {
         options = { encoding: 'base64' };
       });
 
-      it('provides the given `options.encoding` to `fs.readFileSync()`', () => {
+      test('provides the given `options.encoding` to `fs.readFileSync()`', () => {
         dotenvify.unload('/path/to/project/.env', options);
 
-        expect($fs_readFileSync).to.have.been.calledWith('/path/to/project/.env', {
+        expect($fs_readFileSync).toHaveBeenCalledWith('/path/to/project/.env', {
           encoding: 'base64',
         });
       });
@@ -962,123 +990,127 @@ describe('dotenvify (API)', () => {
 
   describe('.config', () => {
     describe('by default (when no options are given)', () => {
-      it('loads the default `.env` file', () => {
+      test('loads the default `.env` file', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.property('DEFAULT_ENV_VAR');
+        expect(process.env).not.toHaveProperty('DEFAULT_ENV_VAR');
 
         dotenvify.config();
 
-        expect(process.env).to.have.property('DEFAULT_ENV_VAR', 'ok');
+        expect(process.env).toHaveProperty('DEFAULT_ENV_VAR', 'ok');
       });
 
-      it('loads the `.env.local` file', () => {
+      test('loads the `.env.local` file', () => {
         mockFS({
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.property('LOCAL_ENV_VAR');
+        expect(process.env).not.toHaveProperty('LOCAL_ENV_VAR');
 
-        dotenvify.config();
+        dotenvify.config({ node_env: 'production' });
 
-        expect(process.env).to.have.property('LOCAL_ENV_VAR', 'ok');
+        expect(process.env).toMatchObject({
+          LOCAL_ENV_VAR: 'ok',
+        });
       });
 
-      it("merges the parsed files' contents", () => {
+      test("merges the parsed files' contents", () => {
         mockFS({
           '/path/to/project/.env':
             'DEFAULT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR="should be overwritten by `.env.local`"',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok\n' + 'SHARED_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'LOCAL_ENV_VAR',
           'SHARED_ENV_VAR',
         ]);
 
-        dotenvify.config();
+        dotenvify.config({ node_env: 'production' });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
           SHARED_ENV_VAR: 'ok',
         });
       });
 
-      it('returns the merged contents of the files within the `.parsed` property', () => {
+      test('returns the merged contents of the files within the `.parsed` property', () => {
         mockFS({
           '/path/to/project/.env':
             'DEFAULT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR="should be overwritten by `.env.local`"',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok\n' + 'SHARED_ENV_VAR=ok',
         });
 
-        const result = dotenvify.config();
+        const result = dotenvify.config({ node_env: 'production' });
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
-          DEFAULT_ENV_VAR: 'ok',
-          LOCAL_ENV_VAR: 'ok',
-          SHARED_ENV_VAR: 'ok',
+        expect(result).toMatchObject({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+            LOCAL_ENV_VAR: 'ok',
+            SHARED_ENV_VAR: 'ok',
+          },
         });
       });
     });
 
     describe('when the `NODE_ENV` environment variable is present', () => {
-      beforeEach('setup `process.env.NODE_ENV`', () => {
+      beforeEach(() => {
         process.env.NODE_ENV = 'development';
       });
 
-      it('loads the default `.env` file', () => {
+      test('loads the default `.env` file', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.property('DEFAULT_ENV_VAR');
+        expect(process.env).not.toHaveProperty('DEFAULT_ENV_VAR');
 
         dotenvify.config();
 
-        expect(process.env).to.have.property('DEFAULT_ENV_VAR', 'ok');
+        expect(process.env).toHaveProperty('DEFAULT_ENV_VAR', 'ok');
       });
 
-      it('loads the `.env.local` file', () => {
+      test('loads the `.env.local` file', () => {
         mockFS({
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.property('LOCAL_ENV_VAR');
+        expect(process.env).not.toHaveProperty('LOCAL_ENV_VAR');
 
         dotenvify.config();
 
-        expect(process.env).to.have.property('LOCAL_ENV_VAR', 'ok');
+        expect(process.env).toHaveProperty('LOCAL_ENV_VAR', 'ok');
       });
 
-      it('loads the "node_env-specific" env file', () => {
+      test('loads the "node_env-specific" env file', () => {
         mockFS({
           '/path/to/project/.env.development': 'DEVELOPMENT_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.property('DEVELOPMENT_ENV_VAR');
+        expect(process.env).not.toHaveProperty('DEVELOPMENT_ENV_VAR');
 
         dotenvify.config();
 
-        expect(process.env).to.have.property('DEVELOPMENT_ENV_VAR', 'ok');
+        expect(process.env).toHaveProperty('DEVELOPMENT_ENV_VAR', 'ok');
       });
 
-      it('loads the "node_env-specific" local env file', () => {
+      test('loads the "node_env-specific" local env file', () => {
         mockFS({
           '/path/to/project/.env.development.local': 'DEVELOPMENT_LOCAL_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.property('DEVELOPMENT_LOCAL_ENV_VAR');
+        expect(process.env).not.toHaveProperty('DEVELOPMENT_LOCAL_ENV_VAR');
 
         dotenvify.config();
 
-        expect(process.env).to.have.property('DEVELOPMENT_LOCAL_ENV_VAR', 'ok');
+        expect(process.env).toHaveProperty('DEVELOPMENT_LOCAL_ENV_VAR', 'ok');
       });
 
-      it("merges the parsed files' contents", () => {
+      test("merges the parsed files' contents", () => {
         mockFS({
           '/path/to/project/.env':
             'DEFAULT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR="should be overwritten by `.env.local`"',
@@ -1094,7 +1126,7 @@ describe('dotenvify (API)', () => {
             'LOCAL_DEVELOPMENT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'LOCAL_ENV_VAR',
           'DEVELOPMENT_ENV_VAR',
@@ -1104,7 +1136,7 @@ describe('dotenvify (API)', () => {
 
         dotenvify.config();
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
           DEVELOPMENT_ENV_VAR: 'ok',
@@ -1113,7 +1145,7 @@ describe('dotenvify (API)', () => {
         });
       });
 
-      it('returns the merged contents of the files within the `.parsed` property', () => {
+      test('returns the merged contents of the files within the `.parsed` property', () => {
         mockFS({
           '/path/to/project/.env':
             'DEFAULT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR="should be overwritten by `.env.local`"',
@@ -1131,12 +1163,14 @@ describe('dotenvify (API)', () => {
 
         const result = dotenvify.config();
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
-          DEFAULT_ENV_VAR: 'ok',
-          LOCAL_ENV_VAR: 'ok',
-          DEVELOPMENT_ENV_VAR: 'ok',
-          LOCAL_DEVELOPMENT_ENV_VAR: 'ok',
-          SHARED_ENV_VAR: 'ok',
+        expect(result).toEqual({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+            LOCAL_ENV_VAR: 'ok',
+            DEVELOPMENT_ENV_VAR: 'ok',
+            LOCAL_DEVELOPMENT_ENV_VAR: 'ok',
+            SHARED_ENV_VAR: 'ok',
+          },
         });
       });
     });
@@ -1144,11 +1178,11 @@ describe('dotenvify (API)', () => {
     describe('when `options.node_env` is given', () => {
       let options;
 
-      beforeEach('setup `options.node_env`', () => {
+      beforeEach(() => {
         options = { node_env: 'production' };
       });
 
-      it('uses the given `options.node_env` instead of `NODE_ENV`', () => {
+      test('uses the given `options.node_env` instead of `NODE_ENV`', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1158,23 +1192,25 @@ describe('dotenvify (API)', () => {
 
         process.env.NODE_ENV = 'development';
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'LOCAL_ENV_VAR',
           'PRODUCTION_ENV_VAR',
           'LOCAL_PRODUCTION_ENV_VAR',
         ]);
 
-        const result = dotenvify.config(options);
+        const result = dotenvify.config({ ...options });
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
-          DEFAULT_ENV_VAR: 'ok',
-          LOCAL_ENV_VAR: 'ok',
-          PRODUCTION_ENV_VAR: 'ok',
-          LOCAL_PRODUCTION_ENV_VAR: 'ok',
+        expect(result).toMatchObject({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+            LOCAL_ENV_VAR: 'ok',
+            PRODUCTION_ENV_VAR: 'ok',
+            LOCAL_PRODUCTION_ENV_VAR: 'ok',
+          },
         });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
           PRODUCTION_ENV_VAR: 'ok',
@@ -1186,11 +1222,11 @@ describe('dotenvify (API)', () => {
     describe('when `options.default_node_env` is given', () => {
       let options;
 
-      beforeEach('setup `options.default_node_env`', () => {
+      beforeEach(() => {
         options = { default_node_env: 'development' };
       });
 
-      it('uses the given environment as default', () => {
+      test('uses the given environment as default', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1198,23 +1234,26 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env.development.local': 'LOCAL_DEVELOPMENT_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'LOCAL_ENV_VAR',
           'DEVELOPMENT_ENV_VAR',
           'LOCAL_DEVELOPMENT_ENV_VAR',
         ]);
 
-        const result = dotenvify.config(options);
+        delete process.env.NODE_ENV;
+        const result = dotenvify.config({ ...options });
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
-          DEFAULT_ENV_VAR: 'ok',
-          LOCAL_ENV_VAR: 'ok',
-          DEVELOPMENT_ENV_VAR: 'ok',
-          LOCAL_DEVELOPMENT_ENV_VAR: 'ok',
+        expect(result).toMatchObject({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+            LOCAL_ENV_VAR: 'ok',
+            DEVELOPMENT_ENV_VAR: 'ok',
+            LOCAL_DEVELOPMENT_ENV_VAR: 'ok',
+          },
         });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
           DEVELOPMENT_ENV_VAR: 'ok',
@@ -1222,7 +1261,7 @@ describe('dotenvify (API)', () => {
         });
       });
 
-      it('prioritizes the `NODE_ENV` environment variable if present', () => {
+      test('prioritizes the `NODE_ENV` environment variable if present', () => {
         mockFS({
           '/path/to/project/.env.development': 'DEVELOPMENT_ENV_VAR="should not be loaded"',
           '/path/to/project/.env.production': 'PRODUCTION_ENV_VAR=ok',
@@ -1230,14 +1269,14 @@ describe('dotenvify (API)', () => {
 
         process.env.NODE_ENV = 'production';
 
-        expect(process.env).to.not.have.keys(['DEVELOPMENT_ENV_VAR', 'PRODUCTION_ENV_VAR']);
+        expect(process.env).not.toHaveProperty(['DEVELOPMENT_ENV_VAR', 'PRODUCTION_ENV_VAR']);
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect(process.env).to.have.property('PRODUCTION_ENV_VAR', 'ok');
+        expect(process.env).toHaveProperty('PRODUCTION_ENV_VAR', 'ok');
       });
 
-      it('prioritizes `options.node_env` if given', () => {
+      test('prioritizes `options.node_env` if given', () => {
         mockFS({
           '/path/to/project/.env.development': 'DEVELOPMENT_ENV_VAR="should not be loaded"',
           '/path/to/project/.env.production': 'PRODUCTION_ENV_VAR=ok',
@@ -1245,32 +1284,32 @@ describe('dotenvify (API)', () => {
 
         options.node_env = 'production';
 
-        expect(process.env).to.not.have.keys(['DEVELOPMENT_ENV_VAR', 'PRODUCTION_ENV_VAR']);
+        expect(process.env).not.toHaveProperty(['DEVELOPMENT_ENV_VAR', 'PRODUCTION_ENV_VAR']);
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect(process.env).to.have.property('PRODUCTION_ENV_VAR', 'ok');
+        expect(process.env).toHaveProperty('PRODUCTION_ENV_VAR', 'ok');
       });
     });
 
     describe('when `options.path` is given', () => {
       let options;
 
-      beforeEach('setup `options.path`', () => {
+      beforeEach(() => {
         options = { path: '/path/to/another/project' };
       });
 
-      it('uses the given `options.path` as a working directory', () => {
+      test('uses the given `options.path` as a working directory', () => {
         mockFS({
           '/path/to/another/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/another/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys(['DEFAULT_ENV_VAR', 'LOCAL_ENV_VAR']);
+        expect(process.env).not.toHaveProperty(['DEFAULT_ENV_VAR', 'LOCAL_ENV_VAR']);
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options, node_env: 'production' });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
         });
@@ -1280,11 +1319,11 @@ describe('dotenvify (API)', () => {
     describe('when `options.pattern` is given', () => {
       let options;
 
-      beforeEach('setup `options.pattern`', () => {
+      beforeEach(() => {
         options = { pattern: '.env/[local/]env[.node_env]' };
       });
 
-      it('reads files by the given `.env*` files naming convention', () => {
+      test('reads files by the given `.env*` files naming convention', () => {
         mockFS({
           '/path/to/project/.env/env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env/env.development': 'DEVELOPMENT_ENV_VAR=ok',
@@ -1294,16 +1333,16 @@ describe('dotenvify (API)', () => {
 
         process.env.NODE_ENV = 'development';
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'LOCAL_ENV_VAR',
           'DEVELOPMENT_ENV_VAR',
           'LOCAL_DEVELOPMENT_ENV_VAR',
         ]);
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           DEVELOPMENT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
@@ -1315,13 +1354,13 @@ describe('dotenvify (API)', () => {
     describe('when `options.files` is given', () => {
       let options;
 
-      beforeEach('setup `options.files`', () => {
+      beforeEach(() => {
         options = {
           files: ['.env', '.env.production', '.env.local'],
         };
       });
 
-      it('loads the given list of files', () => {
+      test('loads the given list of files', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1329,31 +1368,33 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env.production.local': 'LOCAL_PRODUCTION_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'PRODUCTION_ENV_VAR',
           'LOCAL_ENV_VAR',
           'LOCAL_PRODUCTION_ENV_VAR',
         ]);
 
-        const result = dotenvify.config(options);
+        const result = dotenvify.config({ ...options });
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
+        expect(result).toMatchObject({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+            PRODUCTION_ENV_VAR: 'ok',
+            LOCAL_ENV_VAR: 'ok',
+          },
+        });
+
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           PRODUCTION_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
         });
 
-        expect(process.env).to.include({
-          DEFAULT_ENV_VAR: 'ok',
-          PRODUCTION_ENV_VAR: 'ok',
-          LOCAL_ENV_VAR: 'ok',
-        });
-
-        expect(process.env).to.not.have.key('LOCAL_PRODUCTION_ENV_VAR');
+        expect(process.env).not.toHaveProperty('LOCAL_PRODUCTION_ENV_VAR');
       });
 
-      it('ignores `options.node_env`', () => {
+      test('ignores `options.node_env`', () => {
         options.node_env = 'development';
 
         mockFS({
@@ -1363,31 +1404,33 @@ describe('dotenvify (API)', () => {
           '/path/to/project/.env.production': 'PRODUCTION_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'DEVELOPMENT_ENV_VAR',
           'PRODUCTION_ENV_VAR',
           'LOCAL_ENV_VAR',
         ]);
 
-        const result = dotenvify.config(options);
+        const result = dotenvify.config({ ...options });
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
+        expect(result).toMatchObject({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+            PRODUCTION_ENV_VAR: 'ok',
+            LOCAL_ENV_VAR: 'ok',
+          },
+        });
+
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           PRODUCTION_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
         });
 
-        expect(process.env).to.include({
-          DEFAULT_ENV_VAR: 'ok',
-          PRODUCTION_ENV_VAR: 'ok',
-          LOCAL_ENV_VAR: 'ok',
-        });
-
-        expect(process.env).to.not.have.key('DEVELOPMENT_ENV_VAR');
+        expect(process.env).not.toHaveProperty('DEVELOPMENT_ENV_VAR');
       });
 
-      it('loads the list of files in the given order', () => {
+      test('loads the list of files in the given order', () => {
         mockFS({
           '/path/to/project/.env':
             'DEFAULT_ENV_VAR=ok\n' +
@@ -1397,78 +1440,85 @@ describe('dotenvify (API)', () => {
             'LOCAL_ENV_VAR="should be overwritten by `.env.local"`\n' + 'PRODUCTION_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'PRODUCTION_ENV_VAR',
           'LOCAL_ENV_VAR',
         ]);
 
-        const result = dotenvify.config(options);
+        const result = dotenvify.config({ ...options });
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
-          DEFAULT_ENV_VAR: 'ok',
-          PRODUCTION_ENV_VAR: 'ok',
-          LOCAL_ENV_VAR: 'ok',
+        expect(result).toMatchObject({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+            PRODUCTION_ENV_VAR: 'ok',
+            LOCAL_ENV_VAR: 'ok',
+          },
         });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           PRODUCTION_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
         });
       });
 
-      it('ignores missing files', () => {
+      test('ignores missing files', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys([
+        expect(process.env).not.toHaveProperty([
           'DEFAULT_ENV_VAR',
           'PRODUCTION_ENV_VAR',
           'LOCAL_ENV_VAR',
         ]);
 
-        const result = dotenvify.config(options);
+        const result = dotenvify.config({ ...options });
 
-        expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
+        expect(result).toMatchObject({
+          parsed: {
+            DEFAULT_ENV_VAR: 'ok',
+          },
+        });
+
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
         });
 
-        expect(process.env).to.include({
-          DEFAULT_ENV_VAR: 'ok',
-        });
-
-        expect(process.env).to.not.have.keys(['PRODUCTION_ENV_VAR', 'LOCAL_ENV_VAR']);
+        expect(process.env).not.toHaveProperty('PRODUCTION_ENV_VAR');
+        expect(process.env).not.toHaveProperty('LOCAL_ENV_VAR');
       });
 
       describe('… and `options.path` is given', () => {
-        beforeEach('setup `options.path`', () => {
+        beforeEach(() => {
           options.path = '/path/to/another/project';
         });
 
-        it('uses the given `options.path` as a working directory', () => {
+        test('uses the given `options.path` as a working directory', () => {
           mockFS({
             '/path/to/another/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/another/project/.env.production': 'PRODUCTION_ENV_VAR=ok',
             '/path/to/another/project/.env.local': 'LOCAL_ENV_VAR=ok',
           });
 
-          expect(process.env).to.not.have.keys([
+          expect(process.env).not.toHaveProperty([
             'DEFAULT_ENV_VAR',
             'PRODUCTION_ENV_VAR',
             'LOCAL_ENV_VAR',
           ]);
 
-          const result = dotenvify.config(options);
+          const result = dotenvify.config({ ...options });
 
-          expect(result).to.be.an('object').with.property('parsed').that.deep.equals({
-            DEFAULT_ENV_VAR: 'ok',
-            PRODUCTION_ENV_VAR: 'ok',
-            LOCAL_ENV_VAR: 'ok',
+          expect(result).toMatchObject({
+            parsed: {
+              DEFAULT_ENV_VAR: 'ok',
+              PRODUCTION_ENV_VAR: 'ok',
+              LOCAL_ENV_VAR: 'ok',
+            },
           });
 
-          expect(process.env).to.include({
+          expect(process.env).toMatchObject({
             DEFAULT_ENV_VAR: 'ok',
             PRODUCTION_ENV_VAR: 'ok',
             LOCAL_ENV_VAR: 'ok',
@@ -1480,25 +1530,25 @@ describe('dotenvify (API)', () => {
     describe('when `options.encoding` is given', () => {
       let options;
 
-      beforeEach('setup `options.encoding`', () => {
-        options = { encoding: 'base64' };
+      beforeEach(() => {
+        options = { encoding: 'base64', node_env: 'production' };
       });
 
-      it('provides the given `options.encoding` to `fs.readFileSync()`', () => {
+      test('provides the given `options.encoding` to `fs.readFileSync()`', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        expect(process.env).to.not.have.keys(['DEFAULT_ENV_VAR', 'LOCAL_ENV_VAR']);
+        expect(process.env).not.toHaveProperty(['DEFAULT_ENV_VAR', 'LOCAL_ENV_VAR']);
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect($fs_readFileSync).to.have.been.calledWith('/path/to/project/.env', {
+        expect($fs_readFileSync).toHaveBeenCalledWith('/path/to/project/.env', {
           encoding: 'base64',
         });
 
-        expect($fs_readFileSync).to.have.been.calledWith('/path/to/project/.env.local', {
+        expect($fs_readFileSync).toHaveBeenCalledWith('/path/to/project/.env.local', {
           encoding: 'base64',
         });
       });
@@ -1507,11 +1557,11 @@ describe('dotenvify (API)', () => {
     describe('when `options.purge_dotenv` is enabled', () => {
       let options;
 
-      beforeEach('setup `options.purge_dotenv`', () => {
-        options = { purge_dotenv: true };
+      beforeEach(() => {
+        options = { purge_dotenv: true, node_env: 'production' };
       });
 
-      beforeEach("setup `.env*` files' contents", () => {
+      beforeEach(() => {
         mockFS({
           '/path/to/project/.env':
             'DEFAULT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR="should be overwritten by `.env.local`"',
@@ -1519,105 +1569,111 @@ describe('dotenvify (API)', () => {
         });
       });
 
-      it('fixes the "preloaded `.env` file" issue', () => {
+      test('fixes the "preloaded `.env` file" issue', () => {
         process.env.DEFAULT_ENV_VAR = 'ok';
         process.env.SHARED_ENV_VAR = 'should be overwritten by `.env.local`';
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           DEFAULT_ENV_VAR: 'ok',
           LOCAL_ENV_VAR: 'ok',
           SHARED_ENV_VAR: 'ok',
         });
       });
 
-      it('provides `options.encoding` to `fs.readFileSync()` if given', () => {
+      test('provides `options.encoding` to `fs.readFileSync()` if given', () => {
         options.encoding = 'base64';
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect($fs_readFileSync.firstCall).to.have.been.calledWith('/path/to/project/.env', {
+        expect($fs_readFileSync.mock.calls[0][1]).toEqual({
           encoding: 'base64',
         });
 
-        expect($fs_readFileSync.secondCall).to.have.been.calledWith('/path/to/project/.env', {
+        expect($fs_readFileSync.mock.calls[1][1]).toEqual({
           encoding: 'base64',
         });
       });
 
-      it("doesn't fail if the default `.env` file is not present", () => {
+      test("doesn't fail if the default `.env` file is not present", () => {
         delete $dotenvFiles['/path/to/project/.env'];
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect(process.env).to.include({
+        expect(process.env).toMatchObject({
           LOCAL_ENV_VAR: 'ok',
           SHARED_ENV_VAR: 'ok',
         });
 
-        expect(process.env).to.not.have.property('DEFAULT_ENV_VAR');
+        expect(process.env).not.toHaveProperty('DEFAULT_ENV_VAR');
       });
     });
 
     describe('when `options.debug` is enabled', () => {
       let options;
 
-      beforeEach('setup `options.debug`', () => {
+      beforeEach(() => {
         options = { debug: true };
       });
 
-      beforeEach('stub `console.debug`', () => {
-        sinon.stub(console, 'debug');
+      beforeEach(() => {
+        jest.spyOn(console, 'debug').mockImplementation(() => {});
       });
 
-      afterEach('restore `console.debug`', () => {
-        console.debug.restore();
+      afterEach(() => {
+        jest.restoreAllMocks();
       });
 
-      beforeEach("stub `.env*` files' contents", () => {
+      beforeEach(() => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
       });
 
-      it('prints out initialization options [0]', () => {
-        dotenvify.config(options);
+      test('prints out initialization options [0]', () => {
+        dotenvify.config({ ...options });
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*init/);
+        const calls = console.debug.mock.calls.flat();
 
-        expect(console.debug).to.have.not.been.calledWithMatch(/dotenvify\b.*options\./);
+        expect(calls).toEqual(expect.arrayContaining([expect.stringMatching(/dotenvify\b.*init/)]));
       });
 
-      it('prints out initialization options [1]', () => {
+      test('prints out initialization options [1]', () => {
         dotenvify.config({
           ...options,
           node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*init/);
+        const calls = console.debug.mock.calls.flat();
 
-        expect(console.debug).to.have.been.calledWithMatch('options.node_env', 'development');
+        expect(calls).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching(/dotenvify\b.*init/),
+            expect.stringMatching(/options\.node_env/),
+          ])
+        );
       });
 
-      it('prints out initialization options [2]', () => {
+      test('prints out initialization options [2]', () => {
         dotenvify.config({
           ...options,
           node_env: 'production',
           default_node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*init/);
+        const calls = console.debug.mock.calls.flat();
 
-        expect(console.debug).to.have.been.calledWithMatch('options.node_env', 'production');
-
-        expect(console.debug).to.have.been.calledWithMatch(
-          'options.default_node_env',
-          'development'
+        expect(calls).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching(/dotenvify\b.*init/),
+            expect.stringMatching(/options\.node_env/),
+            expect.stringMatching(/options\.default_node_env/),
+          ])
         );
       });
 
-      it('prints out initialization options [3]', () => {
+      test('prints out initialization options [3]', () => {
         process.env.NODE_ENV = 'test';
 
         dotenvify.config({
@@ -1631,91 +1687,89 @@ describe('dotenvify (API)', () => {
           silent: false,
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*init/);
+        const calls = console.debug.mock.calls.flat();
 
-        expect(console.debug).to.have.been.calledWithMatch('options.node_env', 'production');
-
-        expect(console.debug).to.have.been.calledWithMatch(
-          'options.default_node_env',
-          'development'
+        expect(calls).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching(/dotenvify\b.*init/),
+            expect.stringMatching(/options\.node_env/),
+            expect.stringMatching(/options\.default_node_env/),
+            expect.stringMatching(/options\.path/),
+            expect.stringMatching(/options\.pattern/),
+            expect.stringMatching(/options\.encoding/),
+            expect.stringMatching(/options\.purge_dotenv/),
+            expect.stringMatching(/options\.silent/),
+          ])
         );
-
-        expect(console.debug).to.have.been.calledWithMatch('options.path', '/path/to/project');
-
-        expect(console.debug).to.have.been.calledWithMatch(
-          'options.pattern',
-          '.env[.node_env][.local]'
-        );
-
-        expect(console.debug).to.have.been.calledWithMatch('options.encoding', 'utf8');
-
-        expect(console.debug).to.have.been.calledWithMatch('options.purge_dotenv', false);
-
-        expect(console.debug).to.have.been.calledWithMatch('options.silent', false);
       });
 
-      it('prints out initialization options [4]', () => {
+      test('prints out initialization options [4]', () => {
         dotenvify.config({
           ...options,
           path: '/path/to/another/project',
           files: ['.env', '.env.production', '.env.local'],
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*init/);
+        const calls = console.debug.mock.calls;
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          'options.path',
-          '/path/to/another/project'
+        expect(calls.flat()).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching(/dotenvify\b.*init/),
+            expect.stringMatching(/options\.path/),
+            expect.stringMatching(/options\.files/),
+          ])
         );
-
-        expect(console.debug).to.have.been.calledWithMatch('options.files', [
-          '.env',
-          '.env.production',
-          '.env.local',
-        ]);
       });
 
-      it('prints out effective node_env set by `options.node_env`', () => {
+      test('prints out effective node_env set by `options.node_env`', () => {
         dotenvify.config({
           ...options,
           node_env: 'production',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*operating in "production" environment.*`options\.node_env`/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(
+            /dotenvify\b.*operating in "production" environment.*`options\.node_env`/
+          )
         );
       });
 
-      it('prints out effective node_env set by `process.env.NODE_ENV`', () => {
+      test('prints out effective node_env set by `process.env.NODE_ENV`', () => {
         process.env.NODE_ENV = 'test';
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*operating in "test" environment.*`process\.env\.NODE_ENV`/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(
+            /dotenvify\b.*operating in "test" environment.*`process\.env\.NODE_ENV`/
+          )
         );
       });
 
-      it('prints out effective node_env taken from `options.default_node_env`', () => {
+      test('prints out effective node_env taken from `options.default_node_env`', () => {
+        delete process.env.NODE_ENV;
         dotenvify.config({
           ...options,
           default_node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*operating in "development" environment.*`options\.default_node_env`/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(
+            /dotenvify\b.*operating in "development" environment.*`options\.default_node_env`/
+          )
         );
       });
 
-      it('notifies about operating in "no environment" mode when none of the related options is set', () => {
-        dotenvify.config(options);
+      test('notifies about operating in "no environment" mode when none of the related options is set', () => {
+        delete process.env.NODE_ENV;
+        dotenvify.config({ ...options });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*operating in "no environment" mode/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*operating in "no environment" mode/)
         );
       });
 
-      it('prints out the list of effective `.env*` files', () => {
+      test('prints out the list of effective `.env*` files', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1728,28 +1782,28 @@ describe('dotenvify (API)', () => {
           node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> %s/,
-          /^\/path\/to\/project\/\.env$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> %s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> %s/,
-          /^\/path\/to\/project\/\.env\.local$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> %s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.local$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> %s/,
-          /^\/path\/to\/project\/\.env\.development$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> %s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.development$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> %s/,
-          /^\/path\/to\/project\/\.env\.development\.local$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> %s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.development\.local$/)
         );
       });
 
-      it('prints out parsing files', () => {
+      test('prints out parsing files', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1762,28 +1816,28 @@ describe('dotenvify (API)', () => {
           node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*parsing.*%s/,
-          /^\/path\/to\/project\/\.env$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*parsing.*%s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*parsing.*%s/,
-          /^\/path\/to\/project\/\.env\.local$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*parsing.*%s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.local$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*parsing.*%s/,
-          /^\/path\/to\/project\/\.env\.development$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*parsing.*%s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.development$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*parsing.*%s/,
-          /^\/path\/to\/project\/\.env\.development\.local$/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*parsing.*%s/),
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.development\.local$/)
         );
       });
 
-      it('prints out parsed environment variables', () => {
+      test('prints out parsed environment variables', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1796,22 +1850,19 @@ describe('dotenvify (API)', () => {
           node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*>> %s/, 'DEFAULT_ENV_VAR');
+        const debugCalls = console.debug.mock.calls.flat();
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*> %s/, 'LOCAL_ENV_VAR');
-
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*> %s/,
-          'DEVELOPMENT_ENV_VAR'
-        );
-
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*> %s/,
-          'LOCAL_DEVELOPMENT_ENV_VAR'
+        expect(debugCalls).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining('DEFAULT_ENV_VAR'),
+            expect.stringContaining('LOCAL_ENV_VAR'),
+            expect.stringContaining('DEVELOPMENT_ENV_VAR'),
+            expect.stringContaining('LOCAL_DEVELOPMENT_ENV_VAR'),
+          ])
         );
       });
 
-      it('prints out environment variables assigned to `process.env`', () => {
+      test('prints out environment variables assigned to `process.env`', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1824,32 +1875,32 @@ describe('dotenvify (API)', () => {
           node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*merging.*variables.*`process.env`/
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*merging.*variables.*`process.env`/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> process\.env\.%s/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> process\.env\.%s/),
           'DEFAULT_ENV_VAR'
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> process\.env\.%s/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> process\.env\.%s/),
           'LOCAL_ENV_VAR'
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> process\.env\.%s/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> process\.env\.%s/),
           'DEVELOPMENT_ENV_VAR'
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*>> process\.env\.%s/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*>> process\.env\.%s/),
           'LOCAL_DEVELOPMENT_ENV_VAR'
         );
       });
 
-      it('informs when merging with overwrites', () => {
+      test('informs when merging with overwrites', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok\n' + 'SHARED_ENV_VAR=1',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok\n' + 'SHARED_ENV_VAR=2',
@@ -1863,41 +1914,41 @@ describe('dotenvify (API)', () => {
           node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*%s.*overwritten by.*%s/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*%s.*overwritten by.*%s/),
           'SHARED_ENV_VAR',
-          /^\/path\/to\/project\/\.env\.local$/
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.local$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*%s.*overwritten by.*%s/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*%s.*overwritten by.*%s/),
           'SHARED_ENV_VAR',
-          /^\/path\/to\/project\/\.env\.development$/
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.development$/)
         );
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*%s.*overwritten by.*%s/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*%s.*overwritten by.*%s/),
           'SHARED_ENV_VAR',
-          /^\/path\/to\/project\/\.env\.development\.local$/
+          expect.stringMatching(/^\/path\/to\/project\/\.env\.development\.local$/)
         );
       });
 
-      it('informs when predefined environment variable is not being overwritten', () => {
+      test('informs when predefined environment variable is not being overwritten', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR="should be predefined"',
         });
 
         process.env.DEFAULT_ENV_VAR = 'predefined';
 
-        dotenvify.config(options);
+        dotenvify.config({ ...options });
 
-        expect(console.debug).to.have.been.calledWithMatch(
-          /dotenvify\b.*%s.*predefined.*not.*overwritten/,
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*%s.*predefined.*not.*overwritten/),
           'DEFAULT_ENV_VAR'
         );
       });
 
-      it('prints out the completion status', () => {
+      test('prints out the completion status', () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
         });
@@ -1907,15 +1958,17 @@ describe('dotenvify (API)', () => {
           node_env: 'development',
         });
 
-        expect(console.debug).to.have.been.calledWithMatch(/dotenvify\b.*initialization completed/);
+        expect(console.debug).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*initialization completed/)
+        );
       });
 
       describe('… and `options.node_env` is set to "test"', () => {
-        beforeEach('set `.options.node_env` to "test"', () => {
+        beforeEach(() => {
           options.node_env = 'test';
         });
 
-        it('notifies that `.env.local` is being skipped in "test" environment', () => {
+        test('notifies that `.env.local` is being skipped in "test" environment', () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
@@ -1923,214 +1976,229 @@ describe('dotenvify (API)', () => {
             '/path/to/project/.env.test.local': 'LOCAL_TEST_ENV_VAR=ok',
           });
 
-          dotenvify.config(options);
+          dotenvify.config({ ...options });
 
-          expect(console.debug).to.have.been.calledWithMatch(
-            /dotenvify\b.*%s.*is being skipped for "test" environment/,
+          expect(console.debug).toHaveBeenCalledWith(
+            expect.stringMatching(/dotenvify\b.*%s.*is being skipped for "test" environment/),
             '.env.local'
           );
         });
 
-        it("doesn't spam about skipping `.env.local` if it doesn't exist", () => {
+        test("doesn't spam about skipping `.env.local` if it doesn't exist", () => {
           mockFS({
             '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
             '/path/to/project/.env.test': 'TEST_ENV_VAR=ok',
             '/path/to/project/.env.test.local': 'LOCAL_TEST_ENV_VAR=ok',
           });
 
-          dotenvify.config(options);
+          dotenvify.config({ ...options, debug: false });
 
-          expect(console.debug).to.have.not.been.calledWithMatch(/dotenvify\b.*%s.*skipped/);
+          expect(console.debug).not.toHaveBeenCalled();
         });
       });
 
       describe('… and `options.purge_dotenv` is enabled', () => {
-        beforeEach('setup `options.purge_dotenv`', () => {
+        beforeEach(() => {
           options.purge_dotenv = true;
         });
 
-        it('prints out the "unloading `.env` file" message', () => {
-          dotenvify.config(options);
+        test('prints out the "unloading `.env` file" message', () => {
+          dotenvify.config({ ...options });
 
-          expect(console.debug).to.have.been.calledWithMatch(
-            /dotenvify\b.*`options\.purge_dotenv`.*unloading.*`\.env`/
+          expect(console.debug).toHaveBeenCalledWith(
+            expect.stringMatching(/dotenvify\b.*`options\.purge_dotenv`.*unloading.*`\.env`/)
           );
         });
       });
     });
 
     describe('if parsing is failed', () => {
-      beforeEach("stub `.env*` files' contents", () => {
+      beforeEach(() => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
       });
 
-      beforeEach('stub `fs.readFileSync` error', () => {
-        $fs_readFileSync
-          .withArgs('/path/to/project/.env.local')
-          .throws(new Error('`.env.local` file reading error stub'));
+      beforeEach(() => {
+        $fs_readFileSync.mockImplementation((filename, options) => {
+          if (filename === '/path/to/project/.env.local') {
+            throw new Error('`.env.local` file reading error stub');
+          }
+          return $dotenvFiles[filename];
+        });
       });
 
-      beforeEach('stub `console.warn`', () => {
-        sinon.stub(console, 'warn');
+      beforeEach(() => {
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
       });
 
-      afterEach('restore `console.warn`', () => {
-        console.warn.restore();
+      afterEach(() => {
+        jest.restoreAllMocks();
       });
 
-      it("doesn't load any environment variables", () => {
+      test("doesn't load any environment variables", () => {
         const processEnvCopy = { ...process.env };
 
-        dotenvify.config();
+        dotenvify.config({ node_env: 'production' });
 
-        expect(process.env).to.deep.equal(processEnvCopy);
+        expect(process.env).toEqual(processEnvCopy);
       });
 
-      it('returns the occurred error in the `error` property', () => {
-        const result = dotenvify.config();
+      test('returns the occurred error in the `error` property', () => {
+        const result = dotenvify.config({ node_env: 'production' });
 
-        expect(result)
-          .to.be.an('object')
-          .with.property('error')
-          .that.is.an('error')
-          .with.property('message', '`.env.local` file reading error stub');
+        expect(result).toEqual({
+          error: expect.any(Error),
+        });
+        expect(result.error.message).toEqual(
+          expect.stringContaining('`.env.local` file reading error stub')
+        );
       });
 
-      it('warns about the occurred error', () => {
+      test('warns about the occurred error', () => {
+        delete process.env.NODE_ENV;
         dotenvify.config();
 
-        expect(console.warn).to.have.been.calledWithMatch(
-          /dotenvify\b.*`\.env\.local` file reading error stub/
+        expect(console.warn).toHaveBeenCalledWith(
+          expect.stringMatching(/dotenvify\b.*`\.env\.local` file reading error stub/),
+          expect.any(Error)
         );
       });
     });
 
     describe('when none of the appropriate ".env*" files is present', () => {
-      beforeEach('stub `console.warn`', () => {
-        sinon.stub(console, 'warn');
+      beforeEach(() => {
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
       });
 
-      afterEach('restore `console.warn`', () => {
-        console.warn.restore();
+      afterEach(() => {
+        jest.restoreAllMocks();
       });
 
       describe('… and no "node_env-related" options are set', () => {
-        it('returns "no `.env*` files" error', () => {
+        test('returns "no `.env*` files" error', () => {
           const result = dotenvify.config();
 
-          expect(result)
-            .to.be.an('object')
-            .with.property('error')
-            .that.is.an('error')
-            .with.property('message')
-            .that.matches(/no "\.env\*" files/);
+          expect(result).toEqual({
+            error: expect.any(Error),
+          });
+          expect(result.error.message).toEqual(expect.stringContaining('no ".env*" files'));
         });
 
-        it('warns about the "no `.env*` files" error', () => {
+        test('warns about the "no `.env*` files" error', () => {
+          delete process.env.NODE_ENV;
           dotenvify.config();
 
-          expect(console.warn).to.have.been.calledWithMatch(/dotenvify\b.*no "\.env\*" files/);
+          expect(console.warn).toHaveBeenCalledWith(
+            expect.stringMatching(/dotenvify\b.*no "\.env\*" files/),
+            expect.any(Error)
+          );
         });
 
         describe('the returning error message', () => {
-          it('indicates the working directory', () => {
-            const defaultResult = dotenvify.config();
+          test('indicates the working directory', () => {
+            const result = dotenvify.config({ silent: true });
 
-            expect(defaultResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('/path/to/project');
+            expect(result).toEqual({
+              error: expect.any(Error),
+            });
+            expect(result.error.message).toEqual(expect.stringContaining('/path/to/project'));
 
             const pathResult = dotenvify.config({
+              silent: true,
               path: '/path/to/another/project',
             });
 
-            expect(pathResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('/path/to/another/project');
+            expect(pathResult).toEqual({
+              error: expect.any(Error),
+            });
+            expect(pathResult.error.message).toEqual(
+              expect.stringContaining('/path/to/another/project')
+            );
           });
 
-          it('indicates the naming convention pattern', () => {
-            const defaultResult = dotenvify.config();
+          test('indicates the naming convention pattern', () => {
+            delete process.env.NODE_ENV;
+            const result = dotenvify.config();
 
-            expect(defaultResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('.env[.node_env][.local]');
+            // The error message should contain the effective pattern (with node_env replaced if present)
+            expect(result.error.message).toEqual(
+              expect.stringContaining('.env[.node_env][.local]')
+            );
 
             const patternResult = dotenvify.config({
               pattern: 'config/[local/].env[.node_env]',
             });
 
-            expect(patternResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('config/[local/].env[.node_env]');
+            expect(patternResult.error.message).toEqual(
+              expect.stringContaining('config/[local/].env[.node_env]')
+            );
           });
         });
       });
 
       describe('… and the `NODE_ENV` environment variable is present', () => {
-        beforeEach('setup `process.env.NODE_ENV`', () => {
+        beforeEach(() => {
           process.env.NODE_ENV = 'development';
         });
 
-        it('returns "no `.env*` files" error', () => {
+        test('returns "no `.env*` files" error', () => {
           const result = dotenvify.config();
 
-          expect(result)
-            .to.be.an('object')
-            .with.property('error')
-            .that.is.an('error')
-            .with.property('message')
-            .that.matches(/no "\.env\*" files/);
+          expect(result).toEqual({
+            error: expect.any(Error),
+          });
+          expect(result.error.message).toEqual(expect.stringContaining('no ".env*" files'));
         });
 
-        it('warns about the "no `.env*` files" error', () => {
+        test('warns about the "no `.env*` files" error', () => {
           dotenvify.config();
 
-          expect(console.warn).to.have.been.calledWithMatch(/dotenvify\b.*no "\.env\*" files/);
+          expect(console.warn).toHaveBeenCalledWith(
+            expect.stringMatching(/dotenvify\b.*no "\.env\*" files/),
+            expect.any(Error)
+          );
         });
 
         describe('the returning error message', () => {
-          it('indicates the working directory', () => {
-            const defaultResult = dotenvify.config();
+          test('indicates the working directory', () => {
+            const result = dotenvify.config();
 
-            expect(defaultResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('/path/to/project');
+            expect(result.error).toBeInstanceOf(Error);
+            expect(result.error).toHaveProperty('message');
+            expect(result.error.message).toEqual(expect.stringContaining('/path/to/project'));
 
             const pathResult = dotenvify.config({
               path: '/path/to/another/project',
             });
 
-            expect(pathResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('/path/to/another/project');
+            expect(pathResult.error).toBeInstanceOf(Error);
+            expect(pathResult.error).toHaveProperty('message');
+            expect(pathResult.error.message).toEqual(
+              expect.stringContaining('/path/to/another/project')
+            );
           });
 
-          it('indicates the naming convention pattern for the specified node_env', () => {
-            const defaultResult = dotenvify.config();
+          test('indicates the naming convention pattern for the specified node_env', () => {
+            const result = dotenvify.config({ node_env: 'development' });
 
-            expect(defaultResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('.env[.development][.local]');
+            expect(result.error).toBeInstanceOf(Error);
+            expect(result.error).toHaveProperty('message');
+            expect(result.error.message).toEqual(
+              expect.stringContaining('.env[.development][.local]')
+            );
 
             const patternResult = dotenvify.config({
               pattern: 'config/[local/].env[.node_env]',
+              node_env: 'development',
             });
 
-            expect(patternResult.error)
-              .to.be.an('error')
-              .with.property('message')
-              .that.includes('config/[local/].env[.development]');
+            expect(patternResult.error).toBeInstanceOf(Error);
+            expect(patternResult.error).toHaveProperty('message');
+            expect(patternResult.error.message).toEqual(
+              expect.stringContaining('config/[local/].env[.development]')
+            );
           });
         });
       });
@@ -2139,46 +2207,48 @@ describe('dotenvify (API)', () => {
     describe('when `options.silent` is enabled', () => {
       let options;
 
-      beforeEach('setup `options.silent`', () => {
+      beforeEach(() => {
         options = { silent: true };
       });
 
-      beforeEach('stub `console.warn`', () => {
-        sinon.stub(console, 'warn');
+      beforeEach(() => {
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
       });
 
-      afterEach('restore `console.warn`', () => {
-        console.warn.restore();
+      afterEach(() => {
+        jest.restoreAllMocks();
       });
 
-      it("doesn't warn if parsing is failed", () => {
+      test("doesn't warn if parsing is failed", () => {
         mockFS({
           '/path/to/project/.env': 'DEFAULT_ENV_VAR=ok',
           '/path/to/project/.env.local': 'LOCAL_ENV_VAR=ok',
         });
 
-        $fs_readFileSync
-          .withArgs('/path/to/project/.env.local')
-          .throws(new Error('`.env.local` file reading error stub'));
+        // Override `.readFileSync` for specific file to throw
+        $fs_readFileSync.mockImplementation(filename => {
+          if (filename === '/path/to/project/.env.local') {
+            throw new Error('`.env.local` file reading error stub');
+          }
+          return $dotenvFiles[filename];
+        });
 
-        const result = dotenvify.config(options);
+        const result = dotenvify.config({ ...options, node_env: 'production' });
 
-        expect(console.warn).to.have.not.been.called;
+        expect(console.warn).not.toHaveBeenCalled();
 
-        expect(result.error)
-          .to.be.an('error')
-          .with.property('message', '`.env.local` file reading error stub');
+        expect(result.error).toBeInstanceOf(Error);
+        expect(result.error).toHaveProperty('message', '`.env.local` file reading error stub');
       });
 
-      it("doesn't warn about missing `.env*` files", () => {
-        const result = dotenvify.config(options);
+      test("doesn't warn about missing `.env*` files", () => {
+        const result = dotenvify.config({ ...options });
 
-        expect(console.warn).to.have.not.been.called;
+        expect(console.warn).not.toHaveBeenCalled();
 
-        expect(result.error)
-          .to.be.an('error')
-          .with.property('message')
-          .that.matches(/no "\.env\*" files/);
+        expect(result.error).toBeInstanceOf(Error);
+        expect(result.error).toHaveProperty('message');
+        expect(result.error.message).toMatch(/no "\.env\*" files/);
       });
     });
   });

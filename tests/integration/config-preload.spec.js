@@ -1,7 +1,6 @@
 const path = require('path');
 const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
-const { expect } = require('chai');
 
 /**
  * Get the path to a given fixture project.
@@ -26,7 +25,7 @@ async function execWithPreload(cwd, { env = {}, args = [] } = {}) {
     process.argv[0], // ~= /usr/bin/node
     [
       '-r',
-      path.resolve(__dirname, '../../dist/config'),
+      path.resolve(__dirname, '../../src/config'),
       '-e',
       'console.log(JSON.stringify(process.env));',
       '--',
@@ -44,21 +43,19 @@ async function execWithPreload(cwd, { env = {}, args = [] } = {}) {
 }
 
 describe('rapid-dotenv/config (preload)', () => {
-  it('preloads `.env*` files defined environment variables', async () => {
+  test('preloads `.env*` files defined environment variables', async () => {
     const variables = await execWithPreload(getFixtureProjectPath('env'));
-
-    expect(variables).to.have.property('DEFAULT_ENV_VAR').that.is.equal('ok');
+    expect(variables).toHaveProperty('DEFAULT_ENV_VAR', 'ok');
   });
 
-  it('supports configuration via environment variables', async () => {
+  test('supports configuration via environment variables', async () => {
     let variables = await execWithPreload(getFixtureProjectPath('env'), {
       env: {
         DEFAULT_NODE_ENV: 'development',
         DOTENVIFY_PATH: getFixtureProjectPath('node-env'),
       },
     });
-
-    expect(variables).to.include({
+    expect(variables).toMatchObject({
       DEFAULT_NODE_ENV: 'development',
       DEFAULT_ENV_VAR: 'ok',
       DEVELOPMENT_ENV_VAR: 'ok',
@@ -74,8 +71,7 @@ describe('rapid-dotenv/config (preload)', () => {
         DOTENVIFY_PATH: getFixtureProjectPath('node-env'),
       },
     });
-
-    expect(variables).to.include({
+    expect(variables).toMatchObject({
       NODE_ENV: 'production',
       DEFAULT_NODE_ENV: 'development',
       DEFAULT_ENV_VAR: 'ok',
@@ -84,7 +80,7 @@ describe('rapid-dotenv/config (preload)', () => {
     });
   });
 
-  it('supports configuration via command line options', async () => {
+  test('supports configuration via command line options', async () => {
     let variables = await execWithPreload(getFixtureProjectPath('env'), {
       args: [
         '--default-node-env=development',
@@ -92,8 +88,7 @@ describe('rapid-dotenv/config (preload)', () => {
         getFixtureProjectPath('node-env-local'),
       ],
     });
-
-    expect(variables).to.include({
+    expect(variables).toMatchObject({
       DEFAULT_ENV_VAR: 'ok',
       DEVELOPMENT_ENV_VAR: 'ok',
       DEVELOPMENT_LOCAL_VAR: 'ok',
@@ -109,8 +104,7 @@ describe('rapid-dotenv/config (preload)', () => {
         getFixtureProjectPath('node-env-local'),
       ],
     });
-
-    expect(variables).to.include({
+    expect(variables).toMatchObject({
       DEFAULT_ENV_VAR: 'ok',
       PRODUCTION_ENV_VAR: 'ok',
       PRODUCTION_LOCAL_VAR: 'ok',

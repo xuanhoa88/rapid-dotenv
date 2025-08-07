@@ -1,4 +1,4 @@
-require('../../../dist/dotenvify').config({
+require('../../../src/dotenvify').config({
   node_env: process.env.CUSTOM_ENV,
 });
 

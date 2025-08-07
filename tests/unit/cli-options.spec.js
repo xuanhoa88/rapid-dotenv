@@ -1,8 +1,7 @@
-const { expect } = require('chai');
-const cli_options = require('../../dist/cli-options');
+const cli_options = require('../../src/cli-options');
 
 describe('cli_options', () => {
-  it('maps related `--switches` to options', () => {
+  test('maps related `--switches` to options', () => {
     expect(
       cli_options([
         'node',
@@ -23,7 +22,7 @@ describe('cli_options', () => {
         '--dotenvify-silent',
         'true',
       ])
-    ).to.deep.equal({
+    ).toEqual({
       node_env: 'production',
       default_node_env: 'development',
       path: '/path/to/project',
@@ -34,7 +33,7 @@ describe('cli_options', () => {
     });
   });
 
-  it('supports `--switch=value` syntax', () => {
+  test('supports `--switch=value` syntax', () => {
     expect(
       cli_options([
         'node',
@@ -49,7 +48,7 @@ describe('cli_options', () => {
         '--dotenvify-debug=enabled',
         '--dotenvify-silent=true',
       ])
-    ).to.deep.equal({
+    ).toEqual({
       node_env: 'production',
       default_node_env: 'development',
       path: '/path/to/project',
@@ -61,21 +60,20 @@ describe('cli_options', () => {
     });
   });
 
-  it("doesn't include undefined switches", () => {
-    expect(
-      cli_options([
-        'node',
-        '-r',
-        'rapid-dotenv/config',
-        '--default-node-env',
-        'development',
-        '--dotenvify-encoding',
-        'latin1',
-      ])
-    ).to.have.keys(['default_node_env', 'encoding']);
+  test("doesn't include undefined switches", () => {
+    const result = cli_options([
+      'node',
+      '-r',
+      'rapid-dotenv/config',
+      '--default-node-env',
+      'development',
+      '--dotenvify-encoding',
+      'latin1',
+    ]);
+    expect(Object.keys(result)).toEqual(expect.arrayContaining(['default_node_env', 'encoding']));
   });
 
-  it('ignores unrelated `--switches`', () => {
-    expect(cli_options(['--foo', 'bar', '--baz=qux'])).to.be.empty;
+  test('ignores unrelated `--switches`', () => {
+    expect(cli_options(['--foo', 'bar', '--baz=qux'])).toEqual({});
   });
 });

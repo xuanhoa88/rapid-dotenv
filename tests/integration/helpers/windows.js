@@ -1,8 +1,8 @@
 const os = require('os');
 
 const isWindows = () => os.type().startsWith('Windows');
-
-const itSkipOnWindows = isWindows() ? it.skip : it;
+// Usage: (isWindows() ? test.skip : test)
+const itSkipOnWindows = isWindows() ? test.skip : test;
 
 // convert win to posix path
 // example: 'C:\path\to\project\.env' -> '/path/to/project/.env'

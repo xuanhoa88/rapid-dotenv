@@ -1,4 +1,4 @@
-import dotenvify, { DEFAULT_PATTERN } from '../../dist/dotenvify';
+import dotenvify, { DEFAULT_PATTERN } from '../../src/dotenvify';
 
 dotenvify.listFiles({});
 dotenvify.listFiles({ node_env: 'development' });
