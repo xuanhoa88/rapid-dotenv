@@ -49,6 +49,7 @@
     "node": ">=14"
   },
   "scripts": {
+    "postinstall": "npm run build",
     "prepare": "npm run build",
     "build": "tsc --build",
     "rebuild": "npm run build",
@@ -57,7 +58,7 @@
     "test:integration": "jest tests/integration",
     "test:types": "tsc --noEmit",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
-    "lint": "eslint '**/*.{js,ts}'",
+    "lint": "eslint '**/*.{ts,js}' --no-cache",
     "lint:fix": "npm run lint -- --fix"
   }
 }
